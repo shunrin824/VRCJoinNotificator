@@ -1,45 +1,9 @@
 use core::time;
 use regex::Regex;
-use serde::{Deserialize, Serialize};
-use std::fs;
-use std::io::{self, BufRead, BufReader};
-use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
-use std::{env, fs::read_to_string, iter::Iterator, net::UdpSocket, thread};
-use windows::{core::*, Win32::UI::WindowsAndMessaging::*};
+use std::thread;
 
-//XSOverlayに送るデータ用の構造体
-
-#[derive(Serialize, Deserialize)]
-struct xsoverlay_data {
-    messageType: i32,
-    index: i32,
-    timeout: f32,
-    height: f32,
-    opacity: f32,
-    volume: f32,
-    audioPath: String,
-    title: String,
-    content: String,
-    useBase64Icon: bool,
-    icon: String,
-    sourceApp: String,
-}
-
-//配列に複数のユーザー名がある場合にString型に治す関数
-fn vec2xsoverlay(notification_type: i32, user_vec: Vec<String>) {
-    let notification_data: String = user_vec.join("\n");
-    match notification_type {
-        1 => send2_xsoverlay("join", &notification_data),
-        2 => send2_xsoverlay("left", &notification_data),
-        _ => println!("不明なエラーが発生しました。"),
-    }
-}
-
-//logを改行ごとに配列にする関数
-fn log_in_vec(log_data: &str) -> Vec<String> {
-    return log_data.lines().map(|s| s.to_string()).collect();
-}
+mod log_read;
+mod xsoverlay;
 
 //現在のユーザーリストにユーザーを追加する関数
 fn user_push(users_name: &mut Vec<String>, user_name: &str) {
@@ -63,27 +27,19 @@ fn rm_id(user_name: String) -> String {
         .to_string();
 }
 
-//XSOverlayに通知用のデータを送信する関数
-fn send2_xsoverlay(title: &str, content: &str) {
-    let number_of_rows: f32 = content.matches("\n").count() as f32;
-    let data = xsoverlay_data {
-        messageType: 1,
-        index: 0,
-        timeout: number_of_rows,
-        height: 100.0 + number_of_rows * 10.0,
-        opacity: 1.0,
-        volume: 0.7,
-        audioPath: String::from(""),
-        title: String::from(title),
-        content: String::from(content),
-        useBase64Icon: false,
-        icon: String::from(""),
-        sourceApp: String::from(""),
-    };
-    let strdata: String = serde_json::to_string(&data).unwrap();
-    let socket = UdpSocket::bind("127.0.0.1:42068").unwrap();
-    socket.connect("127.0.0.1:42069").unwrap();
-    socket.send(strdata.as_bytes()).unwrap();
+//コンソールにログ吐き出す関数
+fn log_print(log_line: String, log_content: String) {
+    println!(
+        "{}",
+        format!(
+            "{}/{}/{} {} {}",
+            &log_line[0..4],
+            &log_line[5..7],
+            &log_line[8..10],
+            &log_line[11..19],
+            &log_content
+        )
+    ); //最初の4つは日時の表示。
 }
 
 //改行ごとに配列にされたlogファイルから必要な情報を取ってくる関数
@@ -102,137 +58,71 @@ fn log_analyze(
                 //プレイヤーがJoinした場合
                 user_push(users_name, &log_line[61..]);
                 join_data.push(rm_id((&log_line[61..]).to_string()));
-                println!(
-                    "{}/{}/{} {} JOIN: [{: >3}人] {}",
-                    &log_line[0..4],
-                    &log_line[5..7],
-                    &log_line[8..10],
-                    &log_line[11..19],
-                    &users_name.len(),
-                    rm_id((&log_line[61..]).to_string())
+                log_print(
+                    log_line.to_string(),
+                    format!(
+                        "JOIN: [{: >3}人] {}",
+                        &users_name.len(),
+                        rm_id((&log_line[61..]).to_string())
+                    ),
                 );
-            } else if log_line.contains("[Behaviour] OnPlayerLeft ") {
+            }
+            if log_line.contains("[Behaviour] OnPlayerLeft ") {
                 //プレイヤーがLeftした場合
                 user_remove(users_name, &log_line[59..]);
                 left_data.push(rm_id((&log_line[59..]).to_string()));
-                println!(
-                    "{}/{}/{} {} LEFT: [{: >3}人] {}",
-                    &log_line[0..4],
-                    &log_line[5..7],
-                    &log_line[8..10],
-                    &log_line[11..19],
-                    &users_name.len(),
-                    rm_id((&log_line[59..]).to_string())
+
+                log_print(
+                    log_line.to_string(),
+                    format!(
+                        "LEFT: [{: >3}人] {}",
+                        &users_name.len(),
+                        rm_id((&log_line[59..]).to_string())
+                    ),
                 );
-            } else if log_line.contains("Attempting to resolve URL") {
+            }
+            if log_line.contains("Attempting to resolve URL") {
                 //動画などが再生された場合
-                println!(
-                    "{}/{}/{} {} URL : {}",
-                    &log_line[0..4],
-                    &log_line[5..7],
-                    &log_line[8..10],
-                    &log_line[11..19],
-                    &log_line[77..]
+                log_print(
+                    log_line.to_string(),
+                    format!("URL : {}", &log_line[77..].to_string()),
                 );
-                //send2_xsoverlay("URL", &log_line[77..]);
-            } else if log_line.contains("[VRC Camera] Took screenshot to") {
+                xsoverlay::send2_xsoverlay("URL", &log_line[77..]);
+            }
+            if log_line.contains("[VRC Camera] Took screenshot to") {
                 //写真が撮影された場合
-                println!(
-                    "{}/{}/{} {} CAM : {}",
-                    &log_line[0..4],
-                    &log_line[5..7],
-                    &log_line[8..10],
-                    &log_line[11..19],
-                    &log_line[67..]
+                log_print(
+                    log_line.to_string(),
+                    format!("CAM : {}", &log_line[67..].to_string()),
                 );
             }
         }
     }
     match join_data.len().try_into() {
         Ok(0) => (),
-        Ok(1) => send2_xsoverlay("join", &join_data[0]),
-        Ok(_) => vec2xsoverlay(1, join_data),
+        Ok(1) => xsoverlay::send2_xsoverlay("join", &join_data[0]),
+        Ok(_) => xsoverlay::vec2xsoverlay(1, join_data),
         Err(_) => println!("不明なエラーが発生しました。変数join_dataに異常が発生しています。"),
     }
     match left_data.len().try_into() {
         Ok(0) => (),
-        Ok(1) => send2_xsoverlay("left", &left_data[0]),
-        Ok(_) => vec2xsoverlay(2, left_data),
+        Ok(1) => xsoverlay::send2_xsoverlay("left", &left_data[0]),
+        Ok(_) => xsoverlay::vec2xsoverlay(2, left_data),
         Err(_) => println!("不明なエラーが発生しました。変数left_dataに異常が発生しています。"),
     }
 
     return (log_length, users_name.to_vec());
 }
 
-//logファイルをメモリに読み込む関数
-fn log_file_read(log_file_path: &PathBuf) -> Vec<String> {
-    match read_to_string(log_file_path) {
-        Ok(log_data) => {
-            let log_lines: Vec<String> = log_in_vec(&log_data);
-            return log_lines;
-        }
-        Err(e) => {
-            println!("Error:{}", e);
-            panic!("ログファイルを読み込めません。");
-        }
-    }
-}
-
-//ログファイルのパスを確定するための関数
-fn log_file_path() -> PathBuf {
-    let mut latest_log_file: String = "".to_owned();
-    let mut latest_log_time: i64 = 0;
-    let log_dir = PathBuf::from(env::var("USERPROFILE").expect("error"))
-        .join("AppData")
-        .join("LocalLow")
-        .join("VRChat")
-        .join("VRChat");
-    let files = log_dir.read_dir().expect("This Directory is nothing.");
-    for file_path in files {
-        let log_file_name: String = file_path
-            .unwrap()
-            .path()
-            .file_name()
-            .unwrap()
-            .to_string_lossy()
-            .into_owned();
-        if log_file_name.contains("output_log_") {
-            let log_time: i64 = format!(
-                "{}{}{}{}{}{}",
-                &log_file_name[11..15],
-                &log_file_name[16..18],
-                &log_file_name[19..21],
-                &log_file_name[22..24],
-                &log_file_name[25..27],
-                &log_file_name[28..30]
-            )
-            .parse::<i64>()
-            .unwrap();
-            if latest_log_time < log_time {
-                latest_log_time = log_time;
-                latest_log_file = log_file_name;
-            }
-        }
-    }
-
-    let log_file_path = PathBuf::from(env::var("USERPROFILE").expect("error"))
-        .join("AppData")
-        .join("LocalLow")
-        .join("VRChat")
-        .join("VRChat")
-        .join(latest_log_file); //これを変更予定です。
-    return log_file_path;
-}
-
 fn main() {
-    let mut number_of_lines: usize = 0;
-    let mut users_name: Vec<String> = Vec::new();
+    let mut number_of_lines: usize = 0; //既に処理した行数を保存する変数
+    let mut users_name: Vec<String> = Vec::new(); //現時点でのインスタンス内のユーザーを保存する変数
     loop {
-        let log_file_path = log_file_path(); //最新のログファイルのパスをlog_file_pathに代入。
-        let mut log_lines = log_file_read(&log_file_path);
+        let log_file_path = log_read::log_file_path(); //最新のログファイルのパスをlog_file_pathに代入。
+        let mut log_lines = log_read::log_file_read(&log_file_path); //最新のログファイルを行ごとの配列でlog_linesに代入
         (number_of_lines, users_name) =
-            log_analyze(&mut log_lines, &mut number_of_lines, &mut users_name);
-        //ログを1行ずつ見て、通知したり標準出力に出力したり、サーバーに送ったりする予定です。
+            log_analyze(&mut log_lines, &mut number_of_lines, &mut users_name); //ログを解析して色々する関数
+
         //このあたりに、終了条件を書く予定。多分、ログの中の"OnApplicationQuit"がトリガーと思われますが、VRCがエラー落ちした場合も考えないといけないかも...
         thread::sleep(time::Duration::from_millis(500));
     }
