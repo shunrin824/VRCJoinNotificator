@@ -1,11 +1,15 @@
 use core::time;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::fs;
 use std::io::{self, BufRead, BufReader};
-use std::{env, fs::read_to_string, iter::Iterator, net::UdpSocket, path::PathBuf, thread};
+use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
+use std::{env, fs::read_to_string, iter::Iterator, net::UdpSocket, thread};
 use windows::{core::*, Win32::UI::WindowsAndMessaging::*};
 
 //XSOverlayに送るデータ用の構造体
+
 #[derive(Serialize, Deserialize)]
 struct xsoverlay_data {
     messageType: i32,
@@ -176,12 +180,47 @@ fn log_file_read(log_file_path: &PathBuf) -> Vec<String> {
 
 //ログファイルのパスを確定するための関数
 fn log_file_path() -> PathBuf {
+    let mut latest_log_file: String = "".to_owned();
+    let mut latest_log_time: i64 = 0;
+    let log_dir = PathBuf::from(env::var("USERPROFILE").expect("error"))
+        .join("AppData")
+        .join("LocalLow")
+        .join("VRChat")
+        .join("VRChat");
+    let files = log_dir.read_dir().expect("This Directory is nothing.");
+    for file_path in files {
+        let log_file_name: String = file_path
+            .unwrap()
+            .path()
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        if log_file_name.contains("output_log_") {
+            let log_time: i64 = format!(
+                "{}{}{}{}{}{}",
+                &log_file_name[11..15],
+                &log_file_name[16..18],
+                &log_file_name[19..21],
+                &log_file_name[22..24],
+                &log_file_name[25..27],
+                &log_file_name[28..30]
+            )
+            .parse::<i64>()
+            .unwrap();
+            if latest_log_time < log_time {
+                latest_log_time = log_time;
+                latest_log_file = log_file_name;
+            }
+        }
+    }
+
     let log_file_path = PathBuf::from(env::var("USERPROFILE").expect("error"))
         .join("AppData")
         .join("LocalLow")
         .join("VRChat")
         .join("VRChat")
-        .join("output_log_2024-11-29_23-57-45.txt"); //これを変更予定です。
+        .join(latest_log_file); //これを変更予定です。
     return log_file_path;
 }
 
