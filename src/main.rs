@@ -1,5 +1,6 @@
 use core::time;
 use regex::Regex;
+use std::process::Command;
 use std::{path::PathBuf, thread};
 
 mod http_upload;
@@ -137,12 +138,12 @@ fn log_analyze(
 #[tokio::main]
 
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut log_file_path = log_read::log_file_path(); //最新のログファイルのパスをlog_file_pathに代入。
     let mut number_of_lines: usize = 0; //既に処理した行数を保存する変数
     let mut users_name: Vec<String> = Vec::new(); //現時点でのインスタンス内のユーザーを保存する変数
     let mut world_name: String = "".to_string();
     let mut upload_datas: Vec<http_upload::UploadData> = Vec::new();
     loop {
-        let log_file_path = log_read::log_file_path(); //最新のログファイルのパスをlog_file_pathに代入。
         let mut log_lines = log_read::log_file_read(&log_file_path); //最新のログファイルを行ごとの配列でlog_linesに代入
         (number_of_lines, users_name, world_name, upload_datas) = log_analyze(
             &mut log_lines,
@@ -151,10 +152,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             world_name,
         ); //ログを解析して色々する関数
         http_upload::pictures_upload(upload_datas).await?;
+        upload_datas = Vec::new();
 
-        //このあたりに、終了条件を書く予定。多分、ログの中の"OnApplicationQuit"がトリガーと思われますが、VRCがエラー落ちした場合も考えないといけないかも...
-        thread::sleep(time::Duration::from_millis(500));
+        thread::sleep(time::Duration::from_millis(500));//負荷を掛けないように500msのsleep
+
+        //VRCが終了した時のためのやつ。
+        match Command::new("Get-Process -name VRChat").output() {
+            Ok(_) => (),
+            Err(_) => {
+                log_file_path = log_read::log_file_path(); //最新のログファイルのパスをlog_file_pathに代入。
+                //下3行は初期化
+                number_of_lines = 0;
+                users_name = Vec::new();
+                world_name = "".to_string();
+            }
+        }
     }
-    
+
     return Ok(());
 }
