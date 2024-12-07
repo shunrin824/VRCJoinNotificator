@@ -43,11 +43,11 @@ pub fn send2_xsoverlay(title: &str, content: &str) {
 }
 
 //配列に複数のユーザー名がある場合にユーザー名を結合してsend2_xsoverlayに送る関数
-pub fn vec2xsoverlay(notification_type: i32, user_vec: Vec<String>) {
+pub fn vec2xsoverlay(notification_type: i32, user_vec: Vec<String>, number_of_users: usize) {
     let notification_data: String = user_vec.join("\n");
     match notification_type {
-        1 => send2_xsoverlay("join", &notification_data),
-        2 => send2_xsoverlay("left", &notification_data),
+        1 => send2_xsoverlay(&format!("JOIN [{: >3}人]",number_of_users), &notification_data),
+        2 => send2_xsoverlay(&format!("LEFT [{: >3}人]",number_of_users), &notification_data),
         _ => println!("不明なエラーが発生しました。"),
     }
 }

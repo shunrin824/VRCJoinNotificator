@@ -1,7 +1,8 @@
 use core::time;
 use regex::Regex;
-use std::thread;
+use std::{path::PathBuf, thread};
 
+mod http_upload;
 mod log_read;
 mod xsoverlay;
 
@@ -47,10 +48,12 @@ fn log_analyze(
     log_data: &mut Vec<String>,
     number_of_lines: &usize,
     users_name: &mut Vec<String>,
-) -> (usize, Vec<String>) {
+    mut world_name: String,
+) -> (usize, Vec<String>, String, Vec<http_upload::UploadData>) {
     let log_length: usize = log_data.len().try_into().unwrap(); //この呼び出しで解析する行数を代入
     let mut join_data: Vec<String> = Vec::new(); //join通知用のユーザー名の配列
     let mut left_data: Vec<String> = Vec::new(); //left通知用のユーザー名の配列
+    let mut upload_datas: Vec<http_upload::UploadData> = Vec::new();
     log_data.drain(..number_of_lines); //前のループで解析済みのデータを破棄
     if log_data.len() != 0 {
         for log_line in log_data {
@@ -95,35 +98,63 @@ fn log_analyze(
                     log_line.to_string(),
                     format!("CAM : {}", &log_line[67..].to_string()),
                 );
+                let upload_data = http_upload::UploadData {
+                    users_name: users_name.to_vec(),
+                    file_path: PathBuf::from(&log_line[67..]),
+                    world_name: world_name.clone(),
+                };
+                upload_datas.push(upload_data);
+            }
+            if log_line.contains("Joining or Creating Room") {
+                //ワールドに移動した場合
+                world_name = log_line[72..].to_string();
+                log_print(
+                    log_line.to_string(),
+                    format!("ROOM: {}", &log_line[72..].to_string()),
+                )
             }
         }
     }
     match join_data.len().try_into() {
         Ok(0) => (),
-        Ok(1) => xsoverlay::send2_xsoverlay("join", &join_data[0]),
-        Ok(_) => xsoverlay::vec2xsoverlay(1, join_data),
+        Ok(1) => {
+            xsoverlay::send2_xsoverlay(&format!("JOIN [{: >3}人]", users_name.len()), &join_data[0])
+        }
+        Ok(_) => xsoverlay::vec2xsoverlay(1, join_data, users_name.len()),
         Err(_) => println!("不明なエラーが発生しました。変数join_dataに異常が発生しています。"),
     }
     match left_data.len().try_into() {
         Ok(0) => (),
-        Ok(1) => xsoverlay::send2_xsoverlay("left", &left_data[0]),
-        Ok(_) => xsoverlay::vec2xsoverlay(2, left_data),
+        Ok(1) => {
+            xsoverlay::send2_xsoverlay(&format!("LEFT [{: >3}人]", users_name.len()), &left_data[0])
+        }
+        Ok(_) => xsoverlay::vec2xsoverlay(2, left_data, users_name.len()),
         Err(_) => println!("不明なエラーが発生しました。変数left_dataに異常が発生しています。"),
     }
 
-    return (log_length, users_name.to_vec());
+    return (log_length, users_name.to_vec(), world_name, upload_datas);
 }
+#[tokio::main]
 
-fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut number_of_lines: usize = 0; //既に処理した行数を保存する変数
     let mut users_name: Vec<String> = Vec::new(); //現時点でのインスタンス内のユーザーを保存する変数
+    let mut world_name: String = "".to_string();
+    let mut upload_datas: Vec<http_upload::UploadData> = Vec::new();
     loop {
         let log_file_path = log_read::log_file_path(); //最新のログファイルのパスをlog_file_pathに代入。
         let mut log_lines = log_read::log_file_read(&log_file_path); //最新のログファイルを行ごとの配列でlog_linesに代入
-        (number_of_lines, users_name) =
-            log_analyze(&mut log_lines, &mut number_of_lines, &mut users_name); //ログを解析して色々する関数
+        (number_of_lines, users_name, world_name, upload_datas) = log_analyze(
+            &mut log_lines,
+            &mut number_of_lines,
+            &mut users_name,
+            world_name,
+        ); //ログを解析して色々する関数
+        http_upload::pictures_upload(upload_datas).await?;
 
         //このあたりに、終了条件を書く予定。多分、ログの中の"OnApplicationQuit"がトリガーと思われますが、VRCがエラー落ちした場合も考えないといけないかも...
         thread::sleep(time::Duration::from_millis(500));
     }
+    
+    return Ok(());
 }
