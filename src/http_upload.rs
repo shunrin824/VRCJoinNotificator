@@ -1,6 +1,7 @@
 use reqwest::multipart::{self, Form, Part};
 use std::error::Error;
-use std::{collections::HashMap, path::PathBuf};
+use std::io::Write;
+use std::{collections::HashMap, fs, path::PathBuf};
 use tokio;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
@@ -31,15 +32,15 @@ pub async fn http_send(
         .to_string_lossy()
         .into_owned();
 
-    let mut file: File = File::open(picture_path).await?;
-    let mut file_content: Vec<u8> = Vec::new();
-    file.read_to_end(&mut file_content).await?;
-    let file_part: Part = Part::bytes(file_content).file_name(picture_name.clone());
+    let mut file = fs::read(&picture_path)?;
+    let file_part = Part::bytes(file)
+        .file_name(picture_name.clone())
+        .mime_str("image/png")?;
 
     let form = Form::new()
         .text(
             "tag",
-            (world_name + "\n" + &users_name.join("\n")).to_string(),
+            format!("{}00and00{}", world_name, users_name.join("00and00")),
         )
         .text(
             "date",
@@ -53,9 +54,16 @@ pub async fn http_send(
                 &picture_name[24..26]
             ),
         )
+        .text("type", "vrc")
         .part("file", file_part);
 
     let client = reqwest::Client::new();
     let resp = client.post(url).multipart(form).send().await?;
+    if !resp.status().is_success() {
+        return Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "Failed to send the request",
+        )));
+    }
     Ok(())
 }
