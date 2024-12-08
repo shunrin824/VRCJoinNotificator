@@ -6,6 +6,7 @@ use std::{path::PathBuf, thread};
 mod http_upload;
 mod log_read;
 mod xsoverlay;
+mod idms_log;
 
 //現在のユーザーリストにユーザーを追加する関数
 fn user_push(users_name: &mut Vec<String>, user_name: &str) {
@@ -160,6 +161,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         match Command::new("Get-Process -name VRChat").output() {
             Ok(_) => (),
             Err(_) => {
+                http_upload::send_idms_log(log_file_path);
                 log_file_path = log_read::log_file_path(); //最新のログファイルのパスをlog_file_pathに代入。
                 //下3行は初期化
                 number_of_lines = 0;
