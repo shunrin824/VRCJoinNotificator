@@ -36,7 +36,8 @@ pub async fn http_send(
     let file_part = Part::bytes(file)
         .file_name(picture_name.clone())
         .mime_str("image/png")?;
-    let form = Form::new().text("writetype","new")
+    let form = Form::new()
+        .text("writetype", "new")
         .text(
             "tag",
             format!("{}00and00{}", world_name, users_name.join("00and00")),

@@ -1,34 +1,12 @@
 use core::time;
-use regex::Regex;
 use std::process::Command;
 use std::{path::PathBuf, thread};
 
+mod function;
 mod http_upload;
+mod idms_log;
 mod log_read;
 mod xsoverlay;
-mod idms_log;
-
-//現在のユーザーリストにユーザーを追加する関数
-fn user_push(users_name: &mut Vec<String>, user_name: &str) {
-    let user_name: String = rm_id(user_name.to_string());
-    users_name.push(user_name);
-    users_name.shrink_to_fit();
-}
-
-//現在のユーザーリストからユーザーを削除する関数
-fn user_remove(users_name: &mut Vec<String>, user_name: &str) {
-    let user_name: String = rm_id(user_name.to_string());
-    users_name.retain(|s| s != &user_name);
-    users_name.shrink_to_fit();
-}
-
-//ユーザー名からユーザーIDを取り除く関数
-fn rm_id(user_name: String) -> String {
-    return Regex::new(r"\(usr_.*\)$")
-        .unwrap()
-        .replace_all(&user_name, "")
-        .to_string();
-}
 
 //コンソールにログ吐き出す関数
 fn log_print(log_line: String, log_content: String) {
@@ -61,28 +39,28 @@ fn log_analyze(
         for log_line in log_data {
             if log_line.contains("[Behaviour] OnPlayerJoined") {
                 //プレイヤーがJoinした場合
-                user_push(users_name, &log_line[61..]);
-                join_data.push(rm_id((&log_line[61..]).to_string()));
+                function::user_push(users_name, &log_line[61..]);
+                join_data.push(function::rm_id((&log_line[61..]).to_string()));
                 log_print(
                     log_line.to_string(),
                     format!(
                         "JOIN: [{: >3}人] {}",
                         &users_name.len(),
-                        rm_id((&log_line[61..]).to_string())
+                        function::rm_id((&log_line[61..]).to_string())
                     ),
                 );
             }
             if log_line.contains("[Behaviour] OnPlayerLeft ") {
                 //プレイヤーがLeftした場合
-                user_remove(users_name, &log_line[59..]);
-                left_data.push(rm_id((&log_line[59..]).to_string()));
+                function::user_remove(users_name, &log_line[59..]);
+                left_data.push(function::rm_id((&log_line[59..]).to_string()));
 
                 log_print(
                     log_line.to_string(),
                     format!(
                         "LEFT: [{: >3}人] {}",
                         &users_name.len(),
-                        rm_id((&log_line[59..]).to_string())
+                        function::rm_id((&log_line[59..]).to_string())
                     ),
                 );
             }
@@ -139,11 +117,13 @@ fn log_analyze(
 #[tokio::main]
 
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    println!("VRCJoinNotificatorが起動しました。\nVRCJoinNotificatorを初期化中です。");
     let mut log_file_path = log_read::log_file_path(); //最新のログファイルのパスをlog_file_pathに代入。
     let mut number_of_lines: usize = 0; //既に処理した行数を保存する変数
     let mut users_name: Vec<String> = Vec::new(); //現時点でのインスタンス内のユーザーを保存する変数
     let mut world_name: String = "".to_string();
     let mut upload_datas: Vec<http_upload::UploadData> = Vec::new();
+    println!("VRCJoinNotificatorの初期化が完了しました。\nログの解析を開始します。");
     loop {
         let mut log_lines = log_read::log_file_read(&log_file_path); //最新のログファイルを行ごとの配列でlog_linesに代入
         (number_of_lines, users_name, world_name, upload_datas) = log_analyze(
@@ -155,21 +135,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         http_upload::pictures_upload(upload_datas).await?;
         upload_datas = Vec::new();
 
-        thread::sleep(time::Duration::from_millis(500));//負荷を掛けないように500msのsleep
-
-        //VRCが終了した時のためのやつ。
-        match Command::new("Get-Process -name VRChat").output() {
-            Ok(_) => (),
-            Err(_) => {
-                http_upload::send_idms_log(log_file_path);
-                log_file_path = log_read::log_file_path(); //最新のログファイルのパスをlog_file_pathに代入。
-                //下3行は初期化
-                number_of_lines = 0;
-                users_name = Vec::new();
-                world_name = "".to_string();
+        //VRCが終了した時に新しいログファイルを読み込みに行くためのmatch
+        //VRCが終了すると、ログを整形してidmsに送信し、VRCが起動してログが書き込まれるのを待つ。
+        match Command::new("powershell")
+            .args(&["Get-Process", "-name", "VRChat"])
+            .output()
+        {
+            Ok(output) => {
+                if (output.stderr.len() > 1) {
+                    println!("VRChatが終了しました。\nログをidmsに送信中です。");
+                    idms_log::send_idms_log(log_file_path.clone()).await;
+                    println!("ログの送信が完了しました。\nVRChatの起動を待っています。\nVRCJoinNotificatorを終了する場合はXボタン、またはCtrl+Cで終了して下さい。");
+                    while (log_file_path == log_read::log_file_path()) {
+                        thread::sleep(time::Duration::from_secs(15)); //負荷を掛けないように15秒のsleep
+                    }
+                    println!("VRChatの起動を確認しました。\nVRCJoinNotificatorを初期化します。");
+                    log_file_path = log_read::log_file_path(); //最新のログファイルのパスをlog_file_pathに代入。
+                                                               //下3行は初期化
+                    number_of_lines = 0;
+                    users_name = Vec::new();
+                    world_name = "".to_string();
+                    println!(
+                        "VRCJoinNotificatorの初期化が完了しました。\nログの解析を再開します。"
+                    );
+                }
             }
-        }
+            Err(_) => (),
+        };
     }
 
-    return Ok(());
+    Ok(())
 }
