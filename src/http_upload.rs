@@ -1,10 +1,5 @@
-use reqwest::multipart::{self, Form, Part};
-use std::error::Error;
-use std::io::Write;
-use std::{collections::HashMap, fs, path::PathBuf};
-use tokio;
-use tokio::fs::File;
-use tokio::io::AsyncReadExt;
+use reqwest::multipart::{Form, Part};
+use std::{fs, path::PathBuf};
 
 pub struct UploadData {
     pub(crate) users_name: Vec<String>,
@@ -32,7 +27,7 @@ pub async fn http_send(
         .to_string_lossy()
         .into_owned();
 
-    let mut file = fs::read(&picture_path)?;
+    let file = fs::read(&picture_path)?;
     let file_part = Part::bytes(file)
         .file_name(picture_name.clone())
         .mime_str("image/png")?;
