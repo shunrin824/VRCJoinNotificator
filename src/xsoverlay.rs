@@ -3,6 +3,7 @@ use std::net::UdpSocket;
 
 //XSOverlayに送るデータ用の構造体
 
+#[allow(non_snake_case)]
 #[derive(Serialize, Deserialize)]
 struct XsoverlayData {
     messageType: i32,
