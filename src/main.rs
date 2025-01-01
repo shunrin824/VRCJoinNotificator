@@ -3,21 +3,21 @@ use std::process::Command;
 use std::{path::PathBuf, thread};
 
 mod function;
-mod idms_pic;
-mod idms_log;
+mod idms;
 mod log_read;
 mod xsoverlay;
 
 //コンソールにログ吐き出す関数
 fn log_print(log_line: String, log_content: String) -> String {
     return format!(
-            "{}/{}/{} {} {}",
-            &log_line[0..4],
-            &log_line[5..7],
-            &log_line[8..10],
-            &log_line[11..19],
-            &log_content
-        ).to_string(); //最初の4つは日時の表示。
+        "{}/{}/{} {} {}",
+        &log_line[0..4],
+        &log_line[5..7],
+        &log_line[8..10],
+        &log_line[11..19],
+        &log_content
+    )
+    .to_string(); //最初の4つは日時の表示。
 }
 
 //改行ごとに配列にされたlogファイルから必要な情報を取ってくる関数
@@ -26,12 +26,12 @@ fn log_analyze(
     number_of_lines: &usize,
     users_name: &mut Vec<String>,
     mut world_name: String,
-    log_formated_lines: &mut Vec<String>
-) -> (usize, Vec<String>, String, Vec<idms_pic::UploadData>) {
+    log_formated_lines: &mut Vec<String>,
+) -> (usize, Vec<String>, String, Vec<idms::UploadData>) {
     let log_length: usize = log_lines.len().try_into().unwrap(); //この呼び出しで解析する行数を代入
     let mut join_data: Vec<String> = Vec::new(); //join通知用のユーザー名の配列
     let mut left_data: Vec<String> = Vec::new(); //left通知用のユーザー名の配列
-    let mut upload_datas: Vec<idms_pic::UploadData> = Vec::new();
+    let mut upload_datas: Vec<idms::UploadData> = Vec::new();
     log_lines.drain(..number_of_lines); //前のループで解析済みのデータを破棄
     if log_lines.len() != 0 {
         for log_line in log_lines {
@@ -47,7 +47,7 @@ fn log_analyze(
                         function::rm_id((&log_line[61..]).to_string())
                     ),
                 );
-                println!("{}",log_formated);
+                println!("{}", log_formated);
                 log_formated_lines.push(log_formated);
             }
             if log_line.contains("[Behaviour] OnPlayerLeft ") {
@@ -84,7 +84,7 @@ fn log_analyze(
                 );
                 println!("{}", log_formated);
                 log_formated_lines.push(log_formated);
-                let upload_data = idms_pic::UploadData {
+                let upload_data = idms::UploadData {
                     users_name: users_name.to_vec(),
                     file_path: PathBuf::from(&log_line[67..]),
                     world_name: world_name.clone(),
@@ -109,7 +109,9 @@ fn log_analyze(
             xsoverlay::send2_xsoverlay(&format!("JOIN [{: >3}人]", users_name.len()), &join_data[0])
         }
         Ok(_) => xsoverlay::vec2xsoverlay(1, join_data, users_name.len()),
-        Err(_) => println!("Error : 不明なエラーが発生しました。変数join_dataに異常が発生しています。"),
+        Err(_) => {
+            println!("Error : 不明なエラーが発生しました。変数join_dataに異常が発生しています。")
+        }
     }
     match left_data.len().try_into() {
         Ok(0) => (),
@@ -117,7 +119,9 @@ fn log_analyze(
             xsoverlay::send2_xsoverlay(&format!("LEFT [{: >3}人]", users_name.len()), &left_data[0])
         }
         Ok(_) => xsoverlay::vec2xsoverlay(2, left_data, users_name.len()),
-        Err(_) => println!("Error : 不明なエラーが発生しました。変数left_dataに異常が発生しています。"),
+        Err(_) => {
+            println!("Error : 不明なエラーが発生しました。変数left_dataに異常が発生しています。")
+        }
     }
 
     return (log_length, users_name.to_vec(), world_name, upload_datas);
@@ -130,7 +134,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut number_of_lines: usize = 0; //既に処理した行数を保存する変数
     let mut users_name: Vec<String> = Vec::new(); //現時点でのインスタンス内のユーザーを保存する変数
     let mut world_name: String = "".to_string();
-    let mut upload_datas: Vec<idms_pic::UploadData> = Vec::new();
+    let mut upload_datas: Vec<idms::UploadData> = Vec::new();
     let mut log_lines: Vec<String> = Vec::new();
     let mut log_formated_lines: Vec<String> = Vec::new();
     println!("System: VRCJoinNotificatorの初期化が完了しました。\nログの解析を開始します。");
@@ -143,7 +147,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             world_name,
             &mut log_formated_lines,
         ); //ログを解析して色々する関数
-        idms_pic::pictures_upload(upload_datas).await?;
+        idms::pictures_upload(upload_datas).await?;
         upload_datas = Vec::new();
 
         //VRCが終了した時に新しいログファイルを読み込みに行くためのmatch
@@ -155,7 +159,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(output) => {
                 if output.stderr.len() > 1 {
                     println!("System: VRChatが終了しました。");
-                    idms_log::http_send(log_formated_lines).await?;
+                    idms::idms_log_send(log_formated_lines).await?;
                     println!("System: VRChatの起動を待っています。\nSystem: VRCJoinNotificatorを終了する場合はXボタン、またはCtrl+Cで終了して下さい。");
                     while log_file_path == log_read::log_file_path() {
                         thread::sleep(time::Duration::from_secs(15)); //負荷を掛けないように15秒のsleep
