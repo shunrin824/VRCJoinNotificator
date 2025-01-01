@@ -44,3 +44,47 @@ pub fn config_idms_url() -> String {
         }
     }
 }
+
+//configからidmsのユーザー名取ってくる関数(無かったらString: "none"を返答)
+pub fn config_idms_auth_username() -> String {
+    let mut config_path: PathBuf = current_exe().unwrap();
+    config_path.pop();
+    config_path.push("config.txt");
+    match fs::read_to_string(config_path) {
+        Ok(config_data) => {
+            let config_lines: Vec<String> = config_data.lines().map(|s| s.to_string()).collect();
+            for config_line in config_lines {
+                if (config_line.contains("idms_server_auth_username")) {
+                    return config_line[26..].to_owned();
+                }
+            }
+            return "none".to_owned();
+        }
+        Err(_) => {
+            println!("Error : config.txtが見つかりませんでした。(ログの解析は続行されますが、config必須な処理を実行出来ません。)");
+            return "none".to_owned();
+        }
+    }
+}
+
+//configからidmsのパスワード取ってくる関数(無かったらString: "none"を返答)
+pub fn config_idms_auth_password() -> String {
+    let mut config_path: PathBuf = current_exe().unwrap();
+    config_path.pop();
+    config_path.push("config.txt");
+    match fs::read_to_string(config_path) {
+        Ok(config_data) => {
+            let config_lines: Vec<String> = config_data.lines().map(|s| s.to_string()).collect();
+            for config_line in config_lines {
+                if (config_line.contains("idms_server_auth_password")) {
+                    return config_line[26..].to_owned();
+                }
+            }
+            return "none".to_owned();
+        }
+        Err(_) => {
+            println!("Error : config.txtが見つかりませんでした。(ログの解析は続行されますが、config必須な処理を実行出来ません。)");
+            return "none".to_owned();
+        }
+    }
+}
