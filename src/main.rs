@@ -137,7 +137,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut upload_datas: Vec<idms::UploadData> = Vec::new();
     let mut log_lines: Vec<String> = Vec::new();
     let mut log_formated_lines: Vec<String> = Vec::new();
-    println!("System: VRCJoinNotificatorの初期化が完了しました。\nログの解析を開始します。");
+    println!("System: VRCJoinNotificatorの初期化が完了しました。\nSystem: ログの解析を開始します。");
     loop {
         log_lines = log_read::log_file_read(&log_file_path); //最新のログファイルを行ごとの配列でlog_linesに代入
         (number_of_lines, users_name, world_name, upload_datas) = log_analyze(
