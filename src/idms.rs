@@ -2,7 +2,8 @@ use base64;
 use reqwest::header::AUTHORIZATION;
 use reqwest::multipart::{self, Form, Part};
 use std::{fs, path::PathBuf};
-
+//idmsとsdmsは同一のプロジェクトです。表記ゆれがありますが、sdmsへ統一予定です。
+//Shunrin Data Management Systemの略です。
 #[path = "./function.rs"]
 mod function;
 
@@ -34,7 +35,8 @@ pub async fn idms_send(form: Form) -> Result<(), Box<dyn std::error::Error>> {
             .send()
             .await?;
     }
-    Ok(())
+    println!("idms_send");
+    return Ok(())
 }
 
 //idmsに簡易ログを送信する関数
@@ -47,10 +49,10 @@ pub async fn idms_log_send(log_lines: Vec<String>) -> Result<(), Box<dyn std::er
             .text("tag", "vrc log_data")
             .text("type", "txt")
             .text("memo", memo);
-        idms_send(form);
+        idms_send(form).await?;
         println!("System: ログの送信が完了しました。");
     }
-    Ok(())
+    return Ok(())
 }
 
 //idmsに写真を送信する関数
@@ -59,7 +61,7 @@ async fn idms_file_send(
     users_name: Vec<String>,
     picture_path: PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    if !!function::config_read("idms_server_url").contains("none") {
+    if function::config_read("idms_server_url").len() >= 1 && !function::config_read("idms_server_url").contains("none") {
         let picture_name: String = picture_path
             .file_name()
             .unwrap()
@@ -90,9 +92,11 @@ async fn idms_file_send(
             )
             .text("type", "vrc")
             .part("file", file_part);
-        idms_send(form);
+        idms_send(form).await?;
+    }else{
+        print!("degbug idmsのurlが見つかりません。");
     }
-    Ok(())
+    return Ok(())
 }
 
 //複数のデータをそれぞれidms_file_send()に送る関数
@@ -100,5 +104,5 @@ pub async fn pictures_upload(datas: Vec<UploadData>) -> Result<(), Box<dyn std::
     for data in datas {
         idms_file_send(data.world_name, data.users_name, data.file_path).await?;
     }
-    Ok(())
+    return Ok(())
 }

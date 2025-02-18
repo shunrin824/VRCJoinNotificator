@@ -1,11 +1,16 @@
 use core::time;
+use std::ffi::OsStr;
 use std::process::Command;
 use std::{path::PathBuf, thread};
+use sysinfo::{Process, System};
 
 mod function;
 mod idms;
 mod log_read;
 mod xsoverlay;
+
+//build時のコマンド
+//time cross build -r --target "x86_64-pc-windows-gnu"; date
 
 //コンソールにログ吐き出す関数
 fn log_print(log_line: String, log_content: String) -> String {
@@ -129,7 +134,9 @@ fn log_analyze(
 #[tokio::main]
 
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("System: VRCJoinNotificatorが起動しました。\nVRCJoinNotificatorを初期化中です。");
+    println!(
+        "System: VRCJoinNotificatorが起動しました。\nSystem: VRCJoinNotificatorを初期化中です。"
+    );
     let mut log_file_path = log_read::log_file_path(); //最新のログファイルのパスをlog_file_pathに代入。
     let mut number_of_lines: usize = 0; //既に処理した行数を保存する変数
     let mut users_name: Vec<String> = Vec::new(); //現時点でのインスタンス内のユーザーを保存する変数
@@ -137,7 +144,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut upload_datas: Vec<idms::UploadData> = Vec::new();
     let mut log_lines: Vec<String> = Vec::new();
     let mut log_formated_lines: Vec<String> = Vec::new();
-    println!("System: VRCJoinNotificatorの初期化が完了しました。\nSystem: ログの解析を開始します。");
+    println!(
+        "System: VRCJoinNotificatorの初期化が完了しました。\nSystem: ログの解析を開始します。"
+    );
     loop {
         log_lines = log_read::log_file_read(&log_file_path); //最新のログファイルを行ごとの配列でlog_linesに代入
         (number_of_lines, users_name, world_name, upload_datas) = log_analyze(
@@ -147,36 +156,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             world_name,
             &mut log_formated_lines,
         ); //ログを解析して色々する関数
-        idms::pictures_upload(upload_datas).await?;
+        match idms::pictures_upload(upload_datas).await {
+            Ok(_) => (),
+            Err(e) => println!("idmsへの送信でエラーが発生しました。{}", e),
+        };
         upload_datas = Vec::new();
 
         //VRCが終了した時に新しいログファイルを読み込みに行くためのmatch
         //VRCが終了すると、ログを整形してidmsに送信し、VRCが起動してログが書き込まれるのを待つ。
-        match Command::new("powershell")
-            .args(&["Get-Process", "-name", "VRChat"])
-            .output()
+        if System::new_all()
+            .processes_by_name("VRChat".as_ref())
+            .count() < 1
         {
-            Ok(output) => {
-                if output.stderr.len() > 1 {
-                    println!("System: VRChatが終了しました。");
-                    idms::idms_log_send(log_formated_lines).await?;
-                    println!("System: VRChatの起動を待っています。\nSystem: VRCJoinNotificatorを終了する場合はXボタン、またはCtrl+Cで終了して下さい。");
-                    while log_file_path == log_read::log_file_path() {
-                        thread::sleep(time::Duration::from_secs(15)); //負荷を掛けないように15秒のsleep
-                    }
-                    println!("System: VRChatの起動を確認しました。\nSystem: VRCJoinNotificatorを初期化します。");
-                    log_file_path = log_read::log_file_path(); //最新のログファイルのパスをlog_file_pathに代入。
-                                                               //下3行は初期化
-                    number_of_lines = 0;
-                    users_name = Vec::new();
-                    world_name = "".to_string();
-                    log_formated_lines = Vec::new();
-                    println!(
+            println!("System: VRChatが終了しました。");
+            idms::idms_log_send(log_formated_lines).await?;
+            println!("System: VRChatの起動を待っています。\nSystem: VRCJoinNotificatorを終了する場合はXボタン、またはCtrl+Cで終了して下さい。");
+            while log_file_path == log_read::log_file_path() {
+                thread::sleep(time::Duration::from_secs(15)); //負荷を掛けないように15秒のsleep
+            }
+            println!(
+                "System: VRChatの起動を確認しました。\nSystem: VRCJoinNotificatorを初期化します。"
+            );
+            log_file_path = log_read::log_file_path(); //最新のログファイルのパスをlog_file_pathに代入。
+                                                       //下3行は初期化
+            number_of_lines = 0;
+            users_name = Vec::new();
+            world_name = "".to_string();
+            log_formated_lines = Vec::new();
+            println!(
                         "System: VRCJoinNotificatorの初期化が完了しました。\nSystem: ログの解析を再開します。"
                     );
-                }
-            }
-            Err(_) => (),
         }
     }
 }
