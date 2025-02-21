@@ -156,17 +156,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             world_name,
             &mut log_formated_lines,
         ); //ログを解析して色々する関数
-        match idms::pictures_upload(upload_datas).await {
+
+        match idms::pictures_upload(upload_datas).await {//画像をsdmsにアップロードする処理
             Ok(_) => (),
             Err(e) => println!("idmsへの送信でエラーが発生しました。{}", e),
         };
-        upload_datas = Vec::new();
+        upload_datas = Vec::new();//初期化処理
+        thread::sleep(time::Duration::from_millis(100));//負荷軽減のために100ms待機
 
-        //VRCが終了した時に新しいログファイルを読み込みに行くためのmatch
+        //VRCが終了した時に新しいログファイルを読み込みに行くためのif
         //VRCが終了すると、ログを整形してidmsに送信し、VRCが起動してログが書き込まれるのを待つ。
         if System::new_all()
             .processes_by_name("VRChat".as_ref())
-            .count() < 1
+            .count()
+            < 1
         {
             println!("System: VRChatが終了しました。");
             idms::idms_log_send(log_formated_lines).await?;
