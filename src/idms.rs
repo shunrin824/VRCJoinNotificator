@@ -35,7 +35,6 @@ pub async fn idms_send(form: Form) -> Result<(), Box<dyn std::error::Error>> {
             .send()
             .await?;
     }
-    println!("idms_send");
     return Ok(())
 }
 
