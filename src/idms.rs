@@ -2,6 +2,8 @@ use base64;
 use reqwest::header::AUTHORIZATION;
 use reqwest::multipart::{self, Form, Part};
 use std::{fs, path::PathBuf};
+
+use crate::webhook::{discord_webhook_file, discord_webhook_send};
 //idmsとsdmsは同一のプロジェクトです。表記ゆれがありますが、sdmsへ統一予定です。
 //Shunrin Data Management Systemの略です。
 #[path = "./function.rs"]
@@ -35,7 +37,7 @@ pub async fn idms_send(form: Form) -> Result<(), Box<dyn std::error::Error>> {
             .send()
             .await?;
     }
-    return Ok(())
+    return Ok(());
 }
 
 //idmsに簡易ログを送信する関数
@@ -51,7 +53,7 @@ pub async fn idms_log_send(log_lines: Vec<String>) -> Result<(), Box<dyn std::er
         idms_send(form).await?;
         println!("System: ログの送信が完了しました。");
     }
-    return Ok(())
+    return Ok(());
 }
 
 //idmsに写真を送信する関数
@@ -60,7 +62,9 @@ async fn idms_file_send(
     users_name: Vec<String>,
     picture_path: PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    if function::config_read("idms_server_url").len() >= 1 && !function::config_read("idms_server_url").contains("none") {
+    if function::config_read("idms_server_url").len() >= 1
+        && !function::config_read("idms_server_url").contains("none")
+    {
         let picture_name: String = picture_path
             .file_name()
             .unwrap()
@@ -92,16 +96,28 @@ async fn idms_file_send(
             .text("type", "vrc")
             .part("file", file_part);
         idms_send(form).await?;
-    }else{
+    } else {
         print!("degbug idmsのurlが見つかりません。");
     }
-    return Ok(())
+    return Ok(());
 }
 
 //複数のデータをそれぞれidms_file_send()に送る関数
 pub async fn pictures_upload(datas: Vec<UploadData>) -> Result<(), Box<dyn std::error::Error>> {
     for data in datas {
-        idms_file_send(data.world_name, data.users_name, data.file_path).await?;
+        //idmsにデータを送る
+        if function::config_read("idms_server_url").len() >= 1
+            && !function::config_read("idms_server_url").contains("none")
+        {
+            idms_file_send(data.world_name, data.users_name, data.file_path).await?;
+        }
+
+        //discordにデータを送る
+        if function::config_read("idiscord_webhook_url").len() >= 1
+            && !function::config_read("discord_webhook_url").contains("none")
+        {
+            discord_webhook_file(data.world_name, data.users_name, data.file_path).await?;
+        }
     }
-    return Ok(())
+    return Ok(());
 }

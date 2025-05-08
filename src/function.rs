@@ -23,6 +23,23 @@ pub fn rm_id(user_name: String) -> String {
         .to_string();
 }
 
+//invite OR RequestInviteが来たことを解析する関数
+pub fn invite_format(content: &str){
+    let mut msg_type: &str = none;
+    let mut user: &str = none;
+    let mut details: &str = none;
+    let contents: Vec<&str> = content.split(',').collect();
+    for val in contents{
+        if (val.contains("type: invite")){
+            msg_type = "invite";
+        }
+        if (val.contains("username:")){
+            user_name = Regex::new(r".*username:.*").unwrap().captures(val).unwrap();
+            println!("{}",user_name);
+        }
+    }
+}
+
 //configからidmsのパスワード取ってくる関数(無かったらString: "none"を返答)
 pub fn config_read(config_type: &str) -> String {
     let mut config_path: PathBuf = current_exe().unwrap();
@@ -43,6 +60,10 @@ pub fn config_read(config_type: &str) -> String {
                 } else if (config_type == "idms_server_auth_password") {
                     if (config_line.contains("idms_server_auth_password")) {
                         return config_line[26..].to_owned();
+                    }
+                } else if (config_type == "discord_webhook_url") {
+                    if (config_line.contains("discord_webhook_url")) {
+                        return config_line[20..].to_owned();
                     }
                 }
             }

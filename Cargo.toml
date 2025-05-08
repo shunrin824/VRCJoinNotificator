@@ -7,7 +7,7 @@ edition = "2021"
 regex = "1.11.1"
 serde = { version = "1.0.215", features = ["derive"] }
 serde_json = "1.0.133"
-reqwest = { version = "0.12.9", features = ["json", "multipart"] }
+reqwest = { version = "0.12.9", features = ["json", "multipart", "blocking"] }
 tokio = { version = "1.42.0", features = ["full"] }
 base64 = "0.22.1"
 sysinfo = "0.33.1"

@@ -1,13 +1,12 @@
 use core::time;
-use std::ffi::OsStr;
-use std::process::Command;
 use std::{path::PathBuf, thread};
-use sysinfo::{Process, System};
+use sysinfo::System;
 
 mod function;
 mod idms;
 mod log_read;
 mod xsoverlay;
+mod webhook;
 
 //build時のコマンド
 //time cross build -r --target "x86_64-pc-windows-gnu"; date
@@ -81,6 +80,16 @@ fn log_analyze(
                 log_formated_lines.push(log_formated);
                 xsoverlay::send2_xsoverlay("URL", &log_line[77..]);
             }
+            if log.line.contains("Resolving URL") {
+                //ストリーミングの映像が再生された場合
+                let log_formated: String = log_print(
+                    log_line.to_string(),
+                    format!("URL : {}", &log_line[66..].to_string()),
+                );
+                println!("{}", log_formated);
+                log_formated_lines.push(log_formated);
+                xsoverlay::send2_xsoverlay("URL", &log_line[66..]);
+            }
             if log_line.contains("[VRC Camera] Took screenshot to") {
                 //写真が撮影された場合
                 let log_formated: String = log_print(
@@ -105,6 +114,10 @@ fn log_analyze(
                 );
                 println!("{}", log_formated);
                 log_formated_lines.push(log_formated);
+            }
+            if log_line.contains("Received Notification"){
+                //inviteやReqinをDiscordに送信する処理
+                function::invite_format(&log_line);
             }
         }
     }
@@ -157,12 +170,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             &mut log_formated_lines,
         ); //ログを解析して色々する関数
 
-        match idms::pictures_upload(upload_datas).await {//画像をsdmsにアップロードする処理
+        match idms::pictures_upload(upload_datas).await {
+            //画像をsdmsにアップロードする処理
             Ok(_) => (),
             Err(e) => println!("idmsへの送信でエラーが発生しました。{}", e),
         };
-        upload_datas = Vec::new();//初期化処理
-        thread::sleep(time::Duration::from_millis(100));//負荷軽減のために100ms待機
+        upload_datas = Vec::new(); //初期化処理
+        thread::sleep(time::Duration::from_millis(100)); //負荷軽減のために100ms待機
 
         //VRCが終了した時に新しいログファイルを読み込みに行くためのif
         //VRCが終了すると、ログを整形してidmsに送信し、VRCが起動してログが書き込まれるのを待つ。
