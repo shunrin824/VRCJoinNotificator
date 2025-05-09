@@ -80,7 +80,7 @@ fn log_analyze(
                 log_formated_lines.push(log_formated);
                 xsoverlay::send2_xsoverlay("URL", &log_line[77..]);
             }
-            if log.line.contains("Resolving URL") {
+            if log_line.contains("Resolving URL") {
                 //ストリーミングの映像が再生された場合
                 let log_formated: String = log_print(
                     log_line.to_string(),

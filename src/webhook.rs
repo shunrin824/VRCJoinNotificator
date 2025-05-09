@@ -4,13 +4,15 @@ use reqwest::multipart::{self, Form, Part};
 use std::f32::consts::E;
 use std::{env, fs, path::PathBuf};
 
+#[path="./function.rs"]
+mod function;
+
 //整形されたデータをdiscordに転送するだけの関数
 pub async fn discord_webhook_send(form: Form) -> Result<(), Box<dyn std::error::Error>> {
     let url = function::config_read("discord_webhook_url");
     let client = reqwest::Client::new();
     if (url == "none") {
         println!("system: 不明なエラーが発生しました。discordへの送信処理をスキップします。\nerror: webhook.rs > discord_webhook");
-        return E;
     } else {
         let resp = client.post(url).multipart(form).send().await?;
     }
@@ -19,9 +21,9 @@ pub async fn discord_webhook_send(form: Form) -> Result<(), Box<dyn std::error::
 
 //discordに送信する画像データを整形する関数
 pub async fn discord_webhook_file(
-    world_name: String,
-    users_name: Vec<String>,
-    picture_path: PathBuf,
+    world_name: &String,
+    users_name: &Vec<String>,
+    picture_path: &PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
     //パスからファイル名を抽出
     let picture_name: String = picture_path

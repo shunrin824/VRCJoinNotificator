@@ -1,13 +1,14 @@
 use base64;
 use reqwest::header::AUTHORIZATION;
-use reqwest::multipart::{self, Form, Part};
+use reqwest::multipart::{Form, Part};
 use std::{fs, path::PathBuf};
 
-use crate::webhook::{discord_webhook_file, discord_webhook_send};
 //idmsとsdmsは同一のプロジェクトです。表記ゆれがありますが、sdmsへ統一予定です。
 //Shunrin Data Management Systemの略です。
 #[path = "./function.rs"]
 mod function;
+#[path = "./webhook.rs"]
+mod webhook;
 
 pub struct UploadData {
     pub users_name: Vec<String>,
@@ -58,9 +59,9 @@ pub async fn idms_log_send(log_lines: Vec<String>) -> Result<(), Box<dyn std::er
 
 //idmsに写真を送信する関数
 async fn idms_file_send(
-    world_name: String,
-    users_name: Vec<String>,
-    picture_path: PathBuf,
+    world_name: &String,
+    users_name: &Vec<String>,
+    picture_path: &PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if function::config_read("idms_server_url").len() >= 1
         && !function::config_read("idms_server_url").contains("none")
@@ -109,14 +110,14 @@ pub async fn pictures_upload(datas: Vec<UploadData>) -> Result<(), Box<dyn std::
         if function::config_read("idms_server_url").len() >= 1
             && !function::config_read("idms_server_url").contains("none")
         {
-            idms_file_send(data.world_name, data.users_name, data.file_path).await?;
+            idms_file_send(&data.world_name, &data.users_name, &data.file_path).await?;
         }
 
         //discordにデータを送る
         if function::config_read("idiscord_webhook_url").len() >= 1
             && !function::config_read("discord_webhook_url").contains("none")
         {
-            discord_webhook_file(data.world_name, data.users_name, data.file_path).await?;
+            webhook::discord_webhook_file(&data.world_name, &data.users_name, &data.file_path).await?;
         }
     }
     return Ok(());
