@@ -25,7 +25,7 @@ fn log_print(log_line: String, log_content: String) -> String {
 }
 
 //改行ごとに配列にされたlogファイルから必要な情報を取ってくる関数
-fn log_analyze(
+async fn log_analyze(
     log_lines: &mut Vec<String>,
     number_of_lines: &usize,
     users_name: &mut Vec<String>,
@@ -117,7 +117,7 @@ fn log_analyze(
             }
             if log_line.contains("Received Notification"){
                 //inviteやReqinをDiscordに送信する処理
-                function::invite_format(&log_line);
+                webhook::invite_format(&log_line).await;
             }
         }
     }
@@ -168,7 +168,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             &mut users_name,
             world_name,
             &mut log_formated_lines,
-        ); //ログを解析して色々する関数
+        ).await; //ログを解析して色々する関数
 
         match idms::pictures_upload(upload_datas).await {
             //画像をsdmsにアップロードする処理

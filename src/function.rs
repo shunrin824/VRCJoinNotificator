@@ -23,27 +23,6 @@ pub fn rm_id(user_name: String) -> String {
         .to_string();
 }
 
-//invite OR RequestInviteが来たことを解析する関数
-pub fn invite_format(content: &str){
-    let mut msg_type: &str;
-    let mut user: &str;
-    let mut details: &str;
-    let mut user_name: &str;
-    let contents: Vec<&str> = content.split(',').collect();
-    for val in contents{
-        if (val.contains("type: invite")){
-            msg_type = "invite";
-        }
-        if (val.contains("username:")){
-            match Regex::new(r".*username:.*").unwrap().captures(val) {
-                Some(captures) => user_name = captures.get(1).map_or("", |m| m.as_str()),
-                None => todo!(),                
-            }
-            println!("{}",user_name);
-        }
-    }
-}
-
 //configからidmsのパスワード取ってくる関数(無かったらString: "none"を返答)
 pub fn config_read(config_type: &str) -> String {
     let mut config_path: PathBuf = current_exe().unwrap();
