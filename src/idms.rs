@@ -114,7 +114,7 @@ pub async fn pictures_upload(datas: Vec<UploadData>) -> Result<(), Box<dyn std::
         }
 
         //discordにデータを送る
-        if function::config_read("idiscord_webhook_url").len() >= 1
+        if function::config_read("discord_webhook_url").len() >= 1
             && !function::config_read("discord_webhook_url").contains("none")
         {
             webhook::discord_webhook_file(&data.world_name, &data.users_name, &data.file_path).await?;

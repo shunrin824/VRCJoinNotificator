@@ -4,17 +4,19 @@ use reqwest::multipart::{self, Form, Part};
 use std::f32::consts::E;
 use std::{env, fs, path::PathBuf};
 
-#[path="./function.rs"]
+#[path = "./function.rs"]
 mod function;
 
 //整形されたデータをdiscordに転送するだけの関数
 pub async fn discord_webhook_send(form: Form) -> Result<(), Box<dyn std::error::Error>> {
+    println!("discord_webhook_send");
     let url = function::config_read("discord_webhook_url");
     let client = reqwest::Client::new();
     if (url == "none") {
         println!("system: 不明なエラーが発生しました。discordへの送信処理をスキップします。\nerror: webhook.rs > discord_webhook");
     } else {
         let resp = client.post(url).multipart(form).send().await?;
+        println!("{:?}", resp);
     }
     return Ok(());
 }
@@ -25,6 +27,7 @@ pub async fn discord_webhook_file(
     users_name: &Vec<String>,
     picture_path: &PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    println!("discord_webhook_file");
     //パスからファイル名を抽出
     let picture_name: String = picture_path
         .file_name()
@@ -34,20 +37,19 @@ pub async fn discord_webhook_file(
 
     //写真を読み込む
     let file = fs::read(&picture_path)?;
-    let file_part = Part::bytes(file)
-        .file_name(picture_name.clone())
-        .mime_str("image/png")?;
+    let file_part = Part::bytes(file).file_name(picture_name.clone());
 
     //Discordに送信するデータを整形
-    let form = Form::new()
+    let form = multipart::Form::new()
         .text(
-            "payload_json",
+            "content",
             format!(
-                "ワールド名:{}\nユーザー一覧\n[{}]",
+                "ワールド名: {}\n\nユーザー\n{}",
                 world_name,
-                users_name.join("]\n[")
+                users_name.join("\n")
             ),
         )
+        .text("username", "写真")
         .part("file", file_part);
 
     //Discordに送信する。
