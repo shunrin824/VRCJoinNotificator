@@ -10,12 +10,14 @@ mod function;
 
 //invite OR RequestInviteが来たことを解析する関数
 pub async fn invite_format(content: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let mut msg_type: &str;
+    let mut msg_type: String = "none".to_string();
     let mut user: &str;
     let mut details: &str;
     let mut user_name: &str;
-    if (content.contains("type: invite")) {
-        msg_type = "invite";
+    if (content.contains("type: requestInvite")) {
+        msg_type = "request invite".to_owned();
+    }else if (content.contains("type: invite")) {
+        msg_type = "invite".to_owned();
     }
     if (content.contains("username:")) {
         match Regex::new(r"(username:)(.*)(, sender user id:)")
@@ -26,11 +28,21 @@ pub async fn invite_format(content: &str) -> Result<(), Box<dyn std::error::Erro
             None => todo!(),
         }
         if (user_name.len() >= 2) {
+            if msg_type == "invite" {
+
             discord_webhook_text(
-                "invite".to_owned(),
+                "Invite".to_owned(),
                 format!("{}さんから招待が届きました。", user_name).to_owned(),
             )
             .await?;
+            }else if msg_type == "request invite" {
+                
+            discord_webhook_text(
+                "ReqIn".to_owned(),
+                format!("{}さんがあなたのインスタンスに入りたがっています。", user_name).to_owned(),
+            )
+            .await?;
+            }
         }
     }
     return Ok(());
