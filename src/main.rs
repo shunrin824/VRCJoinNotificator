@@ -84,7 +84,7 @@ async fn log_analyze(
                 //ストリーミングの映像が再生された場合
                 let log_formated: String = log_print(
                     log_line.to_string(),
-                    format!("URL : {}", &log_line[66..].to_string()),
+                    format!("URL : {}", &log_line[65..].to_string()),
                 );
                 println!("{}", log_formated);
                 log_formated_lines.push(log_formated);

@@ -23,7 +23,7 @@ pub fn rm_id(user_name: String) -> String {
         .to_string();
 }
 
-//configからidmsのパスワード取ってくる関数(無かったらString: "none"を返答)
+//config各種設定を取得する関数
 pub fn config_read(config_type: &str) -> String {
     let mut config_path: PathBuf = current_exe().unwrap();
     config_path.pop();
