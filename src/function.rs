@@ -23,6 +23,13 @@ pub fn rm_id(user_name: String) -> String {
         .to_string();
 }
 
+//configから設定を読み取ってデバッグ用のメッセージを出力する関数
+pub fn debug_print(message: &str) {
+    if config_read("debug_mode").contains("true") {
+        println!("{}",message);
+    }
+    return;
+}
 //config各種設定を取得する関数
 pub fn config_read(config_type: &str) -> String {
     let mut config_path: PathBuf = current_exe().unwrap();
@@ -47,6 +54,14 @@ pub fn config_read(config_type: &str) -> String {
                 } else if (config_type == "discord_webhook_url") {
                     if (config_line.contains("discord_webhook_url")) {
                         return config_line[20..].to_owned();
+                    }
+                } else if (config_type == "discord_webhook_image_resolution") {
+                    if (config_line.contains("discord_webhook_image_resolution")) {
+                        return config_line[33..].to_owned();
+                    }
+                } else if (config_type == "debug_mode") {
+                    if (config_line.contains("debug_mode")) {
+                        return config_line[11..].to_owned();
                     }
                 }
             }

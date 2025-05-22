@@ -19,12 +19,12 @@ pub async fn invite_format(content: &str) -> Result<(), Box<dyn std::error::Erro
         msg_type = "invite".to_owned();
     }
     if (content.contains("username:")) {
-        if let Some (captures) = Regex::new(r"(username:)(.*)(, sender user id:)")
+        if let Some(captures) = Regex::new(r"(username:)(.*)(, sender user id:)")
             .unwrap()
             .captures(content)
         {
             user_name = &captures.get(2).map_or("", |m| m.as_str())
-        }else{
+        } else {
             println!("不明なエラーが発生しました。 webhook.rs invite_format");
             return Ok(());
         }
@@ -99,17 +99,15 @@ pub async fn discord_webhook_file(
         } else {
             if let Ok(dir) = tempfile::tempdir() {
                 let converted_image_path = dir.path().join(&picture_name);
-                if let Ok(_) = image::convert_png2webp(
+                image::less10mb_webp(
                     &picture_path.to_str().unwrap(),
                     converted_image_path.to_str().unwrap(),
-                    1920,
-                ) {
-                    let file = fs::read(converted_image_path)?;
-                    file_part = Some(Part::bytes(file).file_name(picture_name.clone()));
-                } else {
-                    println!("不明なエラーが発生しました。discord_webhook_file");
-                    return Ok(());
-                }
+                    function::config_read("discord_webhook_image_resolution")
+                        .parse::<u32>()
+                        .unwrap_or(0),
+                );
+                let file = fs::read(converted_image_path)?;
+                file_part = Some(Part::bytes(file).file_name(picture_name.clone()));
             } else {
                 println!("不明なエラーが発生しました。discord_webhook_file");
                 return Ok(());

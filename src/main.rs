@@ -157,6 +157,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut upload_datas: Vec<idms::UploadData> = Vec::new();
     let mut log_lines: Vec<String> = Vec::new();
     let mut log_formated_lines: Vec<String> = Vec::new();
+    function::debug_print("System: debug_modeが有効になっています。");
     println!(
         "System: VRCJoinNotificatorの初期化が完了しました。\nSystem: ログの解析を開始します。"
     );
