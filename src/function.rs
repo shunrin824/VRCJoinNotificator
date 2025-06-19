@@ -26,7 +26,7 @@ pub fn rm_id(user_name: String) -> String {
 //configから設定を読み取ってデバッグ用のメッセージを出力する関数
 pub fn debug_print(message: &str) {
     if config_read("debug_mode").contains("true") {
-        println!("{}",message);
+        println!("Debug: {}",message);
     }
     return;
 }

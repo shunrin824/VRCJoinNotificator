@@ -7,9 +7,6 @@ use super::function;
 //10MB未満に収まるように画像のリサイズを試行
 pub fn less10mb_webp(input_path: &str, output_path: &str,mut output_max_reso: u32){
     let mut output_size;
-    if output_max_reso == 0 {
-        output_max_reso = 8192;
-    }
     function::debug_print("lossless");
         convert_png2webp(input_path, output_path, output_max_reso, 0.0);
         output_size = File::open(output_path).unwrap().metadata().unwrap().len();
@@ -39,7 +36,9 @@ pub fn convert_png2webp(
     let mut resize_image: Option<DynamicImage> = None;
     //画像を読み込む
     let origin_image = image::ImageReader::open(input_path)?.decode()?;
-    if origin_image.width() <= output_max_reso && origin_image.height() <= output_max_reso {
+    function::debug_print(output_max_reso.to_string().as_str());
+    if origin_image.width() <= output_max_reso && origin_image.height() <= output_max_reso || output_max_reso == 0 {
+        function::debug_print("画像コピー");
         resize_image = Some(origin_image);
     } else if origin_image.width() == origin_image.height() {
         //正方形の場合のリサイズ
@@ -67,6 +66,7 @@ pub fn convert_png2webp(
     }
 
     if let Some(resized_image) = resize_image {
+        function::debug_print(format!("{}x{}", resized_image.width(), resized_image.height()).as_str());
         //元画像をRGBAデータに変換
         let rgba_image = resized_image.to_rgba8();
         let webp_image: webp::WebPMemory;
@@ -80,6 +80,7 @@ pub fn convert_png2webp(
                 .encode(output_quality);
         }
         //ファイルに出力
+        function::debug_print(output_path);
         File::create(output_path)?.write_all(&webp_image)?;
     }
 
