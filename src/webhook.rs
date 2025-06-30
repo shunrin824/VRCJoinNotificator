@@ -9,7 +9,7 @@ mod function;
 #[path = "./image.rs"]
 mod image;
 
-//invite OR RequestInviteが来たことを解析する関数
+// VRChatのインバイトまたはRequestInvite通知を解析してDiscordに送信
 pub async fn invite_format(content: &str) -> Result<(), Box<dyn std::error::Error>> {
     let mut msg_type: String = "none".to_string();
     let mut user_name: &str;
@@ -51,7 +51,7 @@ pub async fn invite_format(content: &str) -> Result<(), Box<dyn std::error::Erro
     return Ok(());
 }
 
-//整形されたデータをdiscordに転送するだけの関数
+// Discord Webhookにデータを送信
 pub async fn discord_webhook_send(form: Form) -> Result<(), Box<dyn std::error::Error>> {
     let url = function::config_read("discord_webhook_url");
     let client = reqwest::Client::new();
@@ -63,7 +63,7 @@ pub async fn discord_webhook_send(form: Form) -> Result<(), Box<dyn std::error::
     return Ok(());
 }
 
-//discordに送信するためのテキストデータを整形する関数
+// Discordにテキストメッセージを送信するためのデータを整形
 pub async fn discord_webhook_text(
     actor_name: String,
     content: String,
@@ -72,18 +72,16 @@ pub async fn discord_webhook_text(
         .text("username", actor_name)
         .text("content", content);
 
-    //Discordに送信する。
     discord_webhook_send(form).await?;
     return Ok(());
 }
 
-//discordに送信する画像データを整形する関数
+// Discordに写真を送信するためのデータを整形
 pub async fn discord_webhook_file(
     world_name: &String,
     users_name: &Vec<String>,
     picture_path: &PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    //パスからファイル名を抽出
     let picture_name: String = picture_path
         .file_name()
         .unwrap()
@@ -91,7 +89,6 @@ pub async fn discord_webhook_file(
         .into_owned();
     let mut file_part: Option<Part> = None;
 
-    //写真を読み込む。しかし、容量が大きい場合は縮小
     if let Ok(picture_metadata) = picture_path.metadata() {
         if picture_metadata.len() < 10 * 1000 * 1000 {
             let file = fs::read(&picture_path)?;
@@ -118,7 +115,6 @@ pub async fn discord_webhook_file(
         return Ok(());
     }
 
-    //Discordに送信するデータを整形
     if let Some(upload_file_part) = file_part {
         let form = multipart::Form::new()
             .text(
@@ -132,8 +128,7 @@ pub async fn discord_webhook_file(
             .text("username", "写真")
             .part("file", upload_file_part);
 
-        //Discordに送信する。
-        discord_webhook_send(form).await?;
+            discord_webhook_send(form).await?;
     } else {
         println!("不明なエラーが発生しました。discord_webhook_file");
     }

@@ -3,8 +3,7 @@ use reqwest::header::AUTHORIZATION;
 use reqwest::multipart::{Form, Part};
 use std::{fs, path::PathBuf};
 
-//idmsとsdmsは同一のプロジェクトです。表記ゆれがありますが、sdmsへ統一予定です。
-//Shunrin Data Management Systemの略です。
+// SDMS (Shunrin Data Management System) へのデータ送信処理
 #[path = "./function.rs"]
 mod function;
 #[path = "./webhook.rs"]
@@ -16,7 +15,7 @@ pub struct UploadData {
     pub world_name: String,
 }
 
-//idmsに実際にデータを送信する関数
+// SDMSサーバーにデータを送信
 pub async fn idms_send(form: Form) -> Result<(), Box<dyn std::error::Error>> {
     let url = function::config_read("idms_server_url");
     let client = reqwest::Client::new();
@@ -41,7 +40,7 @@ pub async fn idms_send(form: Form) -> Result<(), Box<dyn std::error::Error>> {
     return Ok(());
 }
 
-//idmsに簡易ログを送信する関数
+// SDMSにVRChatログを送信
 pub async fn idms_log_send(log_lines: Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
     if !function::config_read("idms_server_url").contains("none") {
         println!("System: ログの送信を開始します。");
@@ -57,7 +56,7 @@ pub async fn idms_log_send(log_lines: Vec<String>) -> Result<(), Box<dyn std::er
     return Ok(());
 }
 
-//idmsに写真を送信する関数
+// SDMSにスクリーンショットをアップロード
 async fn idms_file_send(
     world_name: &String,
     users_name: &Vec<String>,
@@ -98,22 +97,20 @@ async fn idms_file_send(
             .part("file", file_part);
         idms_send(form).await?;
     } else {
-        print!("degbug idmsのurlが見つかりません。");
+        function::debug_print("SDMS URLが設定されていません。");
     }
     return Ok(());
 }
 
-//複数のデータをそれぞれidms_file_send()に送る関数
+// スクリーンショットデータをSDMSおよびDiscordに送信
 pub async fn pictures_upload(datas: Vec<UploadData>) -> Result<(), Box<dyn std::error::Error>> {
     for data in datas {
-        //idmsにデータを送る
         if function::config_read("idms_server_url").len() >= 1
             && !function::config_read("idms_server_url").contains("none")
         {
             idms_file_send(&data.world_name, &data.users_name, &data.file_path).await?;
         }
 
-        //discordにデータを送る
         if function::config_read("discord_webhook_url").len() >= 1
             && !function::config_read("discord_webhook_url").contains("none")
         {

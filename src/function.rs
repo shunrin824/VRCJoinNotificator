@@ -1,21 +1,21 @@
 use regex::Regex;
 use std::{env::current_exe, fs, path::PathBuf};
 
-//現在のユーザーリストにユーザーを追加する関数
+// ユーザーリストにユーザーを追加
 pub fn user_push(users_name: &mut Vec<String>, user_name: &str) {
     let user_name: String = rm_id(user_name.to_string());
     users_name.push(user_name);
     users_name.shrink_to_fit();
 }
 
-//現在のユーザーリストからユーザーを削除する関数
+// ユーザーリストからユーザーを削除
 pub fn user_remove(users_name: &mut Vec<String>, user_name: &str) {
     let user_name: String = rm_id(user_name.to_string());
     users_name.retain(|s| s != &user_name);
     users_name.shrink_to_fit();
 }
 
-//ユーザー名からユーザーIDを取り除く関数
+// ユーザー名からユーザーIDを除去
 pub fn rm_id(user_name: String) -> String {
     return Regex::new(r"\(usr_.*\)$")
         .unwrap()
@@ -23,14 +23,14 @@ pub fn rm_id(user_name: String) -> String {
         .to_string();
 }
 
-//configから設定を読み取ってデバッグ用のメッセージを出力する関数
+// デバッグモードが有効な場合のみメッセージを出力
 pub fn debug_print(message: &str) {
     if config_read("debug_mode").contains("true") {
-        println!("Debug: {}",message);
+        println!("Debug: {}", message);
     }
     return;
 }
-//config各種設定を取得する関数
+// config.txtから指定された設定項目の値を取得
 pub fn config_read(config_type: &str) -> String {
     let mut config_path: PathBuf = current_exe().unwrap();
     config_path.pop();
