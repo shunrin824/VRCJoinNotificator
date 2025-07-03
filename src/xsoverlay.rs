@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::net::UdpSocket;
 
-//XSOverlayに送るデータ用の構造体
+// XSOverlayの通知データ構造体
 
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize)]
@@ -20,7 +20,7 @@ struct XsoverlayData {
     sourceApp: String,
 }
 
-//XSOverlayに通知用のデータを送信する関数
+// XSOverlayにUDPで通知を送信
 pub fn send2_xsoverlay(title: &str, content: &str) {
     let number_of_rows: f32 = content.matches("\n").count() as f32;
     let data = XsoverlayData {
@@ -43,7 +43,7 @@ pub fn send2_xsoverlay(title: &str, content: &str) {
     socket.send(strdata.as_bytes()).unwrap();
 }
 
-//配列に複数のユーザー名がある場合にユーザー名を結合してsend2_xsoverlayに送る関数
+// 複数ユーザーの名前を結合してXSOverlayに送信
 pub fn vec2xsoverlay(notification_type: i32, user_vec: Vec<String>, number_of_users: usize) {
     let notification_data: String = user_vec.join("\n");
     match notification_type {

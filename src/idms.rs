@@ -1,19 +1,22 @@
 use base64;
 use reqwest::header::AUTHORIZATION;
-use reqwest::multipart::{self, Form, Part};
+use reqwest::multipart::{Form, Part};
 use std::{fs, path::PathBuf};
-//idmsとsdmsは同一のプロジェクトです。表記ゆれがありますが、sdmsへ統一予定です。
-//Shunrin Data Management Systemの略です。
+
+// SDMS (Shunrin Data Management System) へのデータ送信処理
 #[path = "./function.rs"]
 mod function;
+#[path = "./webhook.rs"]
+mod webhook;
 
+#[derive(Clone)]
 pub struct UploadData {
     pub users_name: Vec<String>,
     pub file_path: PathBuf,
     pub world_name: String,
 }
 
-//idmsに実際にデータを送信する関数
+// SDMSサーバーにデータを送信
 pub async fn idms_send(form: Form) -> Result<(), Box<dyn std::error::Error>> {
     let url = function::config_read("idms_server_url");
     let client = reqwest::Client::new();
@@ -35,11 +38,10 @@ pub async fn idms_send(form: Form) -> Result<(), Box<dyn std::error::Error>> {
             .send()
             .await?;
     }
-    println!("idms_send");
-    return Ok(())
+    return Ok(());
 }
 
-//idmsに簡易ログを送信する関数
+// SDMSにVRChatログを送信
 pub async fn idms_log_send(log_lines: Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
     if !function::config_read("idms_server_url").contains("none") {
         println!("System: ログの送信を開始します。");
@@ -52,16 +54,18 @@ pub async fn idms_log_send(log_lines: Vec<String>) -> Result<(), Box<dyn std::er
         idms_send(form).await?;
         println!("System: ログの送信が完了しました。");
     }
-    return Ok(())
+    return Ok(());
 }
 
-//idmsに写真を送信する関数
+// SDMSにスクリーンショットをアップロード
 async fn idms_file_send(
-    world_name: String,
-    users_name: Vec<String>,
-    picture_path: PathBuf,
+    world_name: &String,
+    users_name: &Vec<String>,
+    picture_path: &PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    if function::config_read("idms_server_url").len() >= 1 && !function::config_read("idms_server_url").contains("none") {
+    if function::config_read("idms_server_url").len() >= 1
+        && !function::config_read("idms_server_url").contains("none")
+    {
         let picture_name: String = picture_path
             .file_name()
             .unwrap()
@@ -93,16 +97,27 @@ async fn idms_file_send(
             .text("type", "vrc")
             .part("file", file_part);
         idms_send(form).await?;
-    }else{
-        print!("degbug idmsのurlが見つかりません。");
+    } else {
+        function::debug_print("SDMS URLが設定されていません。");
     }
-    return Ok(())
+    return Ok(());
 }
 
-//複数のデータをそれぞれidms_file_send()に送る関数
+// スクリーンショットデータをSDMSおよびDiscordに送信
 pub async fn pictures_upload(datas: Vec<UploadData>) -> Result<(), Box<dyn std::error::Error>> {
+    function::debug_print("アップロード処理を開始します。");
     for data in datas {
-        idms_file_send(data.world_name, data.users_name, data.file_path).await?;
+        if function::config_read("idms_server_url").len() >= 1
+            && !function::config_read("idms_server_url").contains("none")
+        {
+            idms_file_send(&data.world_name, &data.users_name, &data.file_path).await?;
+        }
+
+        if function::config_read("discord_webhook_url").len() >= 1
+            && !function::config_read("discord_webhook_url").contains("none")
+        {
+            webhook::discord_webhook_file(&data.world_name, &data.users_name, &data.file_path).await?;
+        }
     }
-    return Ok(())
+    return Ok(());
 }
