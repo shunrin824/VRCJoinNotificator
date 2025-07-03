@@ -105,6 +105,7 @@ async fn idms_file_send(
 
 // スクリーンショットデータをSDMSおよびDiscordに送信
 pub async fn pictures_upload(datas: Vec<UploadData>) -> Result<(), Box<dyn std::error::Error>> {
+    function::debug_print("アップロード処理を開始します。");
     for data in datas {
         if function::config_read("idms_server_url").len() >= 1
             && !function::config_read("idms_server_url").contains("none")

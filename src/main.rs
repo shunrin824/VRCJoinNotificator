@@ -1,5 +1,5 @@
 use core::time;
-use std::{collections::VecDeque, env::current_exe, fs::exists, path::PathBuf, thread};
+use std::{collections::VecDeque, env::current_exe, fmt::format, fs::exists, path::PathBuf, thread};
 use sysinfo::System;
 
 mod function;
@@ -158,7 +158,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut log_lines: Vec<String> = Vec::new();
     let mut log_formated_lines: Vec<String> = Vec::new();
     let mut upload_queue: VecDeque<Vec<idms::UploadData>> = VecDeque::new();
-    let mut upload_handles: Vec<thread::JoinHandle<()>> = Vec::new();
+    let mut upload_handles: Vec<tokio::task::JoinHandle<()>> = Vec::new();
 
     let max_pic_convert_threads: usize;
     if let Ok(config_max_str) = function::config_read("max_convertpic_threads").parse::<usize>() {
@@ -172,6 +172,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     function::debug_print("System: debug_modeが有効になっています。");
+    function::debug_print(format!("画像処理の最大スレッド数は{}です。", max_pic_convert_threads).as_str());
     println!(
         "System: VRCJoinNotificatorの初期化が完了しました。\nSystem: ログの解析を開始します。"
     );
@@ -195,14 +196,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         if upload_handles.len() < max_pic_convert_threads {
             if let Some(data) = upload_queue.pop_front() {
-                let handle = thread::spawn(move || {
-                    let _ = idms::pictures_upload(data);
+                function::debug_print("マルチプロセスでのアップロードを開始します。");
+                let handle = tokio::spawn(async move {
+                    let _ = idms::pictures_upload(data).await;
                 });
                 upload_handles.push(handle);
             }
         }
 
-        thread::sleep(time::Duration::from_millis(100));
+        tokio::time::sleep(time::Duration::from_millis(100)).await;
 
         // VRChatプロセス終了時の処理
         if System::new_all()
@@ -215,14 +217,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             if upload_handles.len() > 0 {
                 println!("System: 現在アップロード処理中です。");
-                while upload_handles.len() > 0 {
-                    thread::sleep(time::Duration::from_millis(200));
+                // 全てのアップロードタスクの完了を待つ
+                for handle in upload_handles.drain(..) {
+                    let _ = handle.await;
                 }
                 println!("System: アップロードが完了しました。");
             }
             println!("System: VRChatの起動を待っています。\nSystem: VRCJoinNotificatorを終了する場合はXボタン、またはCtrl+Cで終了して下さい。");
             while log_file_path == log_read::log_file_path() {
-                thread::sleep(time::Duration::from_secs(15)); //負荷を掛けないように15秒のsleep
+                tokio::time::sleep(time::Duration::from_secs(15)).await; //負荷を掛けないように15秒のsleep
             }
             println!(
                 "System: VRChatの起動を確認しました。\nSystem: VRCJoinNotificatorを初期化します。"
