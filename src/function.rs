@@ -1,5 +1,5 @@
 use regex::Regex;
-use std::{env::current_exe, fs, path::PathBuf};
+use std::{env::current_exe, fs, path::PathBuf,io::{self, BufRead, Write, BufReader}};
 
 // ユーザーリストにユーザーを追加
 pub fn user_push(users_name: &mut Vec<String>, user_name: &str) {
@@ -30,6 +30,7 @@ pub fn debug_print(message: &str) {
     }
     return;
 }
+
 // config.txtから指定された設定項目の値を取得
 pub fn config_read(config_type: &str) -> String {
     let mut config_path: PathBuf = current_exe().unwrap();

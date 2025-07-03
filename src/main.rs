@@ -1,5 +1,5 @@
 use core::time;
-use std::{collections::VecDeque, path::PathBuf, thread};
+use std::{collections::VecDeque, env::current_exe, fs::exists, path::PathBuf, thread};
 use sysinfo::System;
 
 mod function;
@@ -143,6 +143,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!(
         "System: VRCJoinNotificatorが起動しました。\nSystem: VRCJoinNotificatorを初期化中です。"
     );
+    let mut config_path: PathBuf = current_exe().unwrap();
+    config_path.pop();
+    config_path.push("config.txt");
+    if let Err(_) = exists(&config_path){
+        println!("System: config.txtが見つかりませんでした。");
+    }
+
     let mut log_file_path = log_read::log_file_path();
     let mut number_of_lines: usize = 0;
     let mut users_name: Vec<String> = Vec::new();
@@ -155,7 +162,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let max_pic_convert_threads: usize;
     if let Ok(config_max_str) = function::config_read("max_convertpic_threads").parse::<usize>() {
+        if !config_max_str < 1  {
         max_pic_convert_threads = config_max_str;
+        }else {
+            max_pic_convert_threads = 1;
+        }
     } else {
         max_pic_convert_threads = 1;
     }
