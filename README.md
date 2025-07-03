@@ -21,6 +21,7 @@ VRChatのログファイルをリアルタイムで監視し、プレイヤー�
 - **自動圧縮**: Discord容量制限（10MB）対応の自動WebP変換
 - **解像度調整**: 設定可能な最大解像度制限
 - **品質最適化**: ファイルサイズに応じた10%刻みでの品質調整
+- **マルチスレッド動作**: 高速で画像を処理
 
 ## システム要件
 
@@ -53,7 +54,7 @@ cargo build --release --target x86_64-pc-windows-gnu
 # 通常ビルド
 cargo build --release
 ```
-ワンライナー
+### ワンライナー
 ```bash
 git clone https://github.com/yourusername/VRCJoinNotificator.git && cd VRCJoinNotificator && cargo build --release --target x86_64-pc-windows-gnu
 ```
@@ -66,10 +67,13 @@ git clone https://github.com/yourusername/VRCJoinNotificator.git && cd VRCJoinNo
 # デバッグモード（true/false）
 debug_mode=false
 
+# 画像処理時の最大スレッド数 (オプション)
+max_convertpic_threads=4
+
 # Discord Webhook URL（オプション）
 discord_webhook_url=https://discord.com/api/webhooks/YOUR_WEBHOOK_URL
 
-# Discord画像解像度（ピクセル、長辺基準、0で制限なし）
+# Discordへ画像アップロード時の最大解像度（ピクセル、長辺基準、0で制限なし）
 discord_webhook_image_resolution=3840
 
 # SDMS サーバー設定（オプション）
@@ -82,12 +86,13 @@ idms_server_auth_password=password
 
 | 項目 | 説明 | 必須 | デフォルト |
 |------|------|------|-----------|
-| `debug_mode` | デバッグ情報出力 | × | `false` |
-| `discord_webhook_url` | Discord Webhook URL | × | なし |
-| `discord_webhook_image_resolution` | 画像最大解像度 | × | 制限なし |
-| `idms_server_url` | SDMS サーバーURL | × | なし |
-| `idms_server_auth_username` | SDMS 認証ユーザー名 | × | なし |
-| `idms_server_auth_password` | SDMS 認証パスワード | × | なし |
+| `debug_mode` | デバッグ情報出力 | x | `false` |
+| `max_convertpic_threads` | 画像処理時の最大スレッド数 | x | 1 |
+| `discord_webhook_url` | Discord Webhook URL | x | なし |
+| `discord_webhook_image_resolution` | 画像最大解像度 | x | 制限なし |
+| `idms_server_url` | SDMS サーバーURL | x | なし |
+| `idms_server_auth_username` | SDMS 認証ユーザー名 | x | なし |
+| `idms_server_auth_password` | SDMS 認証パスワード | x | なし |
 
 ## 使用方法
 
