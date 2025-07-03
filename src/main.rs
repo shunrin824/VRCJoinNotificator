@@ -1,12 +1,12 @@
 use core::time;
-use std::{path::PathBuf, thread};
+use std::{collections::VecDeque, path::PathBuf, thread};
 use sysinfo::System;
 
 mod function;
 mod idms;
 mod log_read;
-mod xsoverlay;
 mod webhook;
+mod xsoverlay;
 
 // ビルドコマンド例
 // time cross build -r --target "x86_64-pc-windows-gnu"; date
@@ -150,6 +150,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut upload_datas: Vec<idms::UploadData> = Vec::new();
     let mut log_lines: Vec<String> = Vec::new();
     let mut log_formated_lines: Vec<String> = Vec::new();
+    let mut upload_queue: VecDeque<Vec<idms::UploadData>> = VecDeque::new();
+    let mut upload_handles: Vec<thread::JoinHandle<()>> = Vec::new();
+
+    let max_pic_convert_threads: usize;
+    if let Ok(config_max_str) = function::config_read("max_convertpic_threads").parse::<usize>() {
+        max_pic_convert_threads = config_max_str;
+    } else {
+        max_pic_convert_threads = 1;
+    }
+
     function::debug_print("System: debug_modeが有効になっています。");
     println!(
         "System: VRCJoinNotificatorの初期化が完了しました。\nSystem: ログの解析を開始します。"
@@ -162,13 +172,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             &mut users_name,
             world_name,
             &mut log_formated_lines,
-        ).await;
+        )
+        .await;
+        //マルチスレッド(最大スレッド数: max_pic_convert_threads)でのDiscordとSDMSへのアップロード処理
+        upload_handles.retain(|handle| !handle.is_finished());
 
-        match idms::pictures_upload(upload_datas).await {
-            Ok(_) => (),
-            Err(e) => println!("idmsへの送信でエラーが発生しました。{}", e),
-        };
-        upload_datas = Vec::new();
+        if !upload_datas.is_empty() {
+            upload_queue.push_back(upload_datas.clone());
+            upload_datas = Vec::new();
+        }
+
+        if upload_handles.len() < max_pic_convert_threads {
+            if let Some(data) = upload_queue.pop_front() {
+                let handle = thread::spawn(move || {
+                    let _ = idms::pictures_upload(data);
+                });
+                upload_handles.push(handle);
+            }
+        }
+
         thread::sleep(time::Duration::from_millis(100));
 
         // VRChatプロセス終了時の処理
@@ -179,6 +201,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         {
             println!("System: VRChatが終了しました。");
             idms::idms_log_send(log_formated_lines).await?;
+
+            if upload_handles.len() > 0 {
+                println!("System: 現在アップロード処理中です。");
+                while upload_handles.len() > 0 {
+                    thread::sleep(time::Duration::from_millis(200));
+                }
+                println!("System: アップロードが完了しました。");
+            }
             println!("System: VRChatの起動を待っています。\nSystem: VRCJoinNotificatorを終了する場合はXボタン、またはCtrl+Cで終了して下さい。");
             while log_file_path == log_read::log_file_path() {
                 thread::sleep(time::Duration::from_secs(15)); //負荷を掛けないように15秒のsleep

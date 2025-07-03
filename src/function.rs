@@ -63,6 +63,10 @@ pub fn config_read(config_type: &str) -> String {
                     if (config_line.contains("debug_mode")) {
                         return config_line[11..].to_owned();
                     }
+                } else if (config_type == "max_convertpic_threads") {
+                    if (config_line.contains("max_convertpic_threads")) {
+                        return config_line[23..].to_owned();
+                    }
                 }
             }
             return "none".to_owned();

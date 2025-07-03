@@ -9,6 +9,7 @@ mod function;
 #[path = "./webhook.rs"]
 mod webhook;
 
+#[derive(Clone)]
 pub struct UploadData {
     pub users_name: Vec<String>,
     pub file_path: PathBuf,
