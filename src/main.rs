@@ -141,7 +141,7 @@ async fn log_analyze(
 
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!(
-        "System: VRCJoinNotificatorが起動しました。\nSystem: VRCJoinNotificatorを初期化中です。"
+        "System: VRCJoinNotificator v0.3.2が起動しました。\nSystem: VRCJoinNotificatorを初期化中です。"
     );
     let mut config_path: PathBuf = current_exe().unwrap();
     config_path.pop();
