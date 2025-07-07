@@ -1,5 +1,7 @@
 use core::time;
-use std::{collections::VecDeque, env::current_exe, fmt::format, fs::exists, path::PathBuf, thread};
+use std::{
+    collections::VecDeque, env::current_exe, fmt::format, fs::exists, path::PathBuf, thread,
+};
 use sysinfo::System;
 
 mod function;
@@ -146,7 +148,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut config_path: PathBuf = current_exe().unwrap();
     config_path.pop();
     config_path.push("config.txt");
-    if let Err(_) = exists(&config_path){
+    if let Err(_) = exists(&config_path) {
         println!("System: config.txtが見つかりませんでした。");
     }
 
@@ -160,19 +162,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut upload_queue: VecDeque<Vec<idms::UploadData>> = VecDeque::new();
     let mut upload_handles: Vec<tokio::task::JoinHandle<()>> = Vec::new();
 
-    let max_pic_convert_threads: usize;
+    let mut max_pic_convert_threads: usize;
     if let Ok(config_max_str) = function::config_read("max_convertpic_threads").parse::<usize>() {
-        if !config_max_str < 1  {
-        max_pic_convert_threads = config_max_str;
-        }else {
-            max_pic_convert_threads = 1;
+        if !config_max_str < 1 {
+            max_pic_convert_threads = config_max_str;
+        } else {
+            max_pic_convert_threads = 4;
         }
     } else {
-        max_pic_convert_threads = 1;
+        max_pic_convert_threads = 4;
     }
 
     function::debug_print("System: debug_modeが有効になっています。");
-    function::debug_print(format!("画像処理の最大スレッド数は{}です。", max_pic_convert_threads).as_str());
+    function::debug_print(
+        format!(
+            "画像処理の最大スレッド数は{}です。",
+            max_pic_convert_threads
+        )
+        .as_str(),
+    );
     println!(
         "System: VRCJoinNotificatorの初期化が完了しました。\nSystem: ログの解析を開始します。"
     );
@@ -187,7 +195,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .await;
         //マルチスレッド(最大スレッド数: max_pic_convert_threads)でのDiscordとSDMSへのアップロード処理
-        upload_handles.retain(|handle| !handle.is_finished());
 
         if !upload_datas.is_empty() {
             upload_queue.push_back(upload_datas.clone());
@@ -204,7 +211,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        tokio::time::sleep(time::Duration::from_millis(100)).await;
+        tokio::time::sleep(time::Duration::from_millis(500)).await;
 
         // VRChatプロセス終了時の処理
         if System::new_all()
@@ -213,16 +220,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             < 1
         {
             println!("System: VRChatが終了しました。");
-            idms::idms_log_send(log_formated_lines).await?;
 
-            if upload_handles.len() > 0 {
-                println!("System: 現在アップロード処理中です。");
                 // 全てのアップロードタスクの完了を待つ
-                for handle in upload_handles.drain(..) {
-                    let _ = handle.await;
+            if upload_handles.len() > 0 || upload_queue.len() > 0 {
+                println!("System: 現在アップロード処理中です。");
+                while upload_handles.len() > 0 || upload_queue.len() > 0 {
+                    println!(
+                        "{} SYS: 現在処理中: {}; 待機中: {}",
+                        function::time_print(),
+                        upload_handles.len(),
+                        upload_queue.len()
+                    );
+                    if upload_handles.len() < max_pic_convert_threads {
+                        if let Some(data) = upload_queue.pop_front() {
+                            function::debug_print("マルチプロセスでのアップロードを開始します。");
+                            let handle = tokio::spawn(async move {
+                                let _ = idms::pictures_upload(data).await;
+                            });
+                            upload_handles.push(handle);
+                        }
+                    }
+                    tokio::time::sleep(time::Duration::from_millis(1000)).await;
                 }
+                // 全てのアップロードタスクの完了を待つ
                 println!("System: アップロードが完了しました。");
             }
+            idms::idms_log_send(log_formated_lines).await?;
             println!("System: VRChatの起動を待っています。\nSystem: VRCJoinNotificatorを終了する場合はXボタン、またはCtrl+Cで終了して下さい。");
             while log_file_path == log_read::log_file_path() {
                 tokio::time::sleep(time::Duration::from_secs(15)).await; //負荷を掛けないように15秒のsleep

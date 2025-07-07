@@ -1,5 +1,7 @@
 use regex::Regex;
 use std::{env::current_exe, fs, path::PathBuf,io::{self, BufRead, Write, BufReader}};
+use chrono::{DateTime, Local};
+
 
 // ユーザーリストにユーザーを追加
 pub fn user_push(users_name: &mut Vec<String>, user_name: &str) {
@@ -77,4 +79,10 @@ pub fn config_read(config_type: &str) -> String {
             return "none".to_owned();
         }
     }
+}
+
+//時間を表示する関数
+pub fn time_print() -> String {
+    let local_time= Local::now().format("%Y/%m/%d %H:%M:%S").to_string();
+    return local_time;
 }
