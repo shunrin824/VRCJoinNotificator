@@ -87,7 +87,7 @@ idms_server_auth_password=password
 | 項目 | 説明 | 必須 | デフォルト |
 |------|------|------|-----------|
 | `debug_mode` | デバッグ情報出力 | x | `false` |
-| `max_convertpic_threads` | 画像処理時の最大スレッド数 | x | 1 |
+| `max_convertpic_threads` | 画像処理時の最大スレッド数 | x | 4 |
 | `discord_webhook_url` | Discord Webhook URL | x | なし |
 | `discord_webhook_image_resolution` | 画像最大解像度 | x | 制限なし |
 | `idms_server_url` | SDMS サーバーURL | x | なし |
