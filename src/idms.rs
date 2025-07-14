@@ -104,20 +104,18 @@ async fn idms_file_send(
 }
 
 // スクリーンショットデータをSDMSおよびDiscordに送信
-pub async fn pictures_upload(datas: Vec<UploadData>) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn pictures_upload(data: UploadData) -> Result<(), Box<dyn std::error::Error>> {
     function::debug_print("アップロード処理を開始します。");
-    for data in datas {
-        if function::config_read("idms_server_url").len() >= 1
-            && !function::config_read("idms_server_url").contains("none")
-        {
-            idms_file_send(&data.world_name, &data.users_name, &data.file_path).await?;
-        }
+    if function::config_read("idms_server_url").len() >= 1
+        && !function::config_read("idms_server_url").contains("none")
+    {
+        idms_file_send(&data.world_name, &data.users_name, &data.file_path).await?;
+    }
 
-        if function::config_read("discord_webhook_url").len() >= 1
-            && !function::config_read("discord_webhook_url").contains("none")
-        {
-            webhook::discord_webhook_file(&data.world_name, &data.users_name, &data.file_path).await?;
-        }
+    if function::config_read("discord_webhook_url").len() >= 1
+        && !function::config_read("discord_webhook_url").contains("none")
+    {
+        webhook::discord_webhook_file(&data.world_name, &data.users_name, &data.file_path).await?;
     }
     return Ok(());
 }

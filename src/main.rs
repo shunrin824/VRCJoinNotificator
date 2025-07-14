@@ -159,7 +159,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut upload_datas: Vec<idms::UploadData> = Vec::new();
     let mut log_lines: Vec<String> = Vec::new();
     let mut log_formated_lines: Vec<String> = Vec::new();
-    let mut upload_queue: VecDeque<Vec<idms::UploadData>> = VecDeque::new();
+    let mut upload_queue: VecDeque<idms::UploadData> = VecDeque::new();
     let mut upload_handles: Vec<tokio::task::JoinHandle<()>> = Vec::new();
 
     let mut max_pic_convert_threads: usize;
@@ -197,7 +197,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         //マルチスレッド(最大スレッド数: max_pic_convert_threads)でのDiscordとSDMSへのアップロード処理
 
         if !upload_datas.is_empty() {
-            upload_queue.push_back(upload_datas.clone());
+            for upload_data in upload_datas {
+                upload_queue.push_back(upload_data.clone());
+            }
             upload_datas = Vec::new();
         }
 
