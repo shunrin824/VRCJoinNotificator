@@ -18,32 +18,45 @@ pub struct UploadData {
 
 // SDMSサーバーにデータを送信
 pub async fn idms_send(form: Form) -> Result<(), Box<dyn std::error::Error>> {
-    let url = function::config_read("idms_server_url");
+    let Some(url) = function::config_read("idms_server_url") else {
+        function::system_print("SDMSサーバーのURLが設定されていません。");
+        return Ok(());
+    };
     let client = reqwest::Client::new();
-    if (function::config_read("idms_server_auth_username") == "none") {
-        let resp = client.post(url).multipart(form).send().await?;
+
+    if let Some(idms_server_auth_username) = function::config_read("idms_server_auth_username") {
+        if let Some(idms_server_auth_password) = function::config_read("idms_server_auth_password")
+        {
+            // 認証情報あり
+            let idms_auth = format!(
+                "Basic {}",
+                base64::encode(&format!(
+                    "{}:{}",
+                    idms_server_auth_username, idms_server_auth_password
+                ))
+            );
+            let resp = client
+                .post(url)
+                .header(AUTHORIZATION, idms_auth)
+                .multipart(form)
+                .send()
+                .await?;
+        } else {
+            //パスワードなし
+            function::system_print("パスワードが設定されていません。認証なしで続行します。");
+            let resp = client.post(url).multipart(form).send().await?;
+        }
     } else {
-        let idms_auth = format!(
-            "Basic {}",
-            base64::encode(&format!(
-                "{}:{}",
-                function::config_read("idms_server_auth_username"),
-                function::config_read("idms_server_auth_password")
-            ))
-        );
-        let resp = client
-            .post(url)
-            .header(AUTHORIZATION, idms_auth)
-            .multipart(form)
-            .send()
-            .await?;
+        // 認証情報なし
+        function::debug_print("SDMSサーバーの認証情報がありません。認証なしで続行します。");
+        let resp = client.post(url).multipart(form).send().await?;
     }
     return Ok(());
 }
 
 // SDMSにVRChatログを送信
 pub async fn idms_log_send(log_lines: Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
-    if !function::config_read("idms_server_url").contains("none") {
+    if let Some(_) = function::config_read("idms_server_url"){
         println!("System: ログの送信を開始します。");
         let memo: String = log_lines.join("\n");
         let form = Form::new()
@@ -63,8 +76,7 @@ async fn idms_file_send(
     users_name: &Vec<String>,
     picture_path: &PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    if function::config_read("idms_server_url").len() >= 1
-        && !function::config_read("idms_server_url").contains("none")
+    if let Some(_) = function::config_read("idms_server_url")
     {
         let picture_name: String = picture_path
             .file_name()
@@ -104,20 +116,16 @@ async fn idms_file_send(
 }
 
 // スクリーンショットデータをSDMSおよびDiscordに送信
-pub async fn pictures_upload(datas: Vec<UploadData>) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn pictures_upload(data: UploadData) -> Result<(), Box<dyn std::error::Error>> {
     function::debug_print("アップロード処理を開始します。");
-    for data in datas {
-        if function::config_read("idms_server_url").len() >= 1
-            && !function::config_read("idms_server_url").contains("none")
-        {
-            idms_file_send(&data.world_name, &data.users_name, &data.file_path).await?;
-        }
+    if let Some(_) = function::config_read("idms_server_url")
+    {
+        idms_file_send(&data.world_name, &data.users_name, &data.file_path).await?;
+    }
 
-        if function::config_read("discord_webhook_url").len() >= 1
-            && !function::config_read("discord_webhook_url").contains("none")
-        {
-            webhook::discord_webhook_file(&data.world_name, &data.users_name, &data.file_path).await?;
-        }
+    if let Some (_) = function::config_read("discord_webhook_url")
+    {
+        webhook::discord_webhook_file(&data.world_name, &data.users_name, &data.file_path).await?;
     }
     return Ok(());
 }

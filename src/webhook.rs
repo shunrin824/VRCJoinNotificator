@@ -25,7 +25,7 @@ pub async fn invite_format(content: &str) -> Result<(), Box<dyn std::error::Erro
         {
             user_name = &captures.get(2).map_or("", |m| m.as_str())
         } else {
-            println!("不明なエラーが発生しました。 webhook.rs invite_format");
+            function::system_print("不明なエラーが発生しました。 webhook.rs > invite_format");
             return Ok(());
         }
         if (user_name.len() >= 2) {
@@ -53,13 +53,12 @@ pub async fn invite_format(content: &str) -> Result<(), Box<dyn std::error::Erro
 
 // Discord Webhookにデータを送信
 pub async fn discord_webhook_send(form: Form) -> Result<(), Box<dyn std::error::Error>> {
-    let url = function::config_read("discord_webhook_url");
     let client = reqwest::Client::new();
-    if (url == "none") {
-        println!("system: 不明なエラーが発生しました。discordへの送信処理をスキップします。\nerror: webhook.rs > discord_webhook");
-    } else {
-        let resp = client.post(url).multipart(form).send().await?;
-    }
+    let Some(url) = function::config_read("discord_webhook_url") else {
+        function::system_print("不明なエラーが発生しました。discordへの送信処理をスキップします。error: webhook.rs > discord_webhook");
+        return Ok(());
+    };
+    let resp = client.post(url).multipart(form).send().await?;
     return Ok(());
 }
 
@@ -99,7 +98,7 @@ pub async fn discord_webhook_file(
                 image::less10mb_webp(
                     &picture_path.to_str().unwrap(),
                     converted_image_path.to_str().unwrap(),
-                    function::config_read("discord_webhook_image_resolution")
+                    function::config_read("discord_webhook_image_resolution").unwrap_or("0".to_string())
                         .parse::<u32>()
                         .unwrap_or(0),
                 );
@@ -128,7 +127,7 @@ pub async fn discord_webhook_file(
             .text("username", "写真")
             .part("file", upload_file_part);
 
-            discord_webhook_send(form).await?;
+        discord_webhook_send(form).await?;
     } else {
         println!("不明なエラーが発生しました。discord_webhook_file");
     }

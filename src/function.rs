@@ -1,7 +1,11 @@
-use regex::Regex;
-use std::{env::current_exe, fs, path::PathBuf,io::{self, BufRead, Write, BufReader}};
 use chrono::{DateTime, Local};
-
+use regex::Regex;
+use std::{
+    env::current_exe,
+    fs,
+    io::{self, BufRead, BufReader, Write},
+    path::PathBuf,
+};
 
 // ユーザーリストにユーザーを追加
 pub fn user_push(users_name: &mut Vec<String>, user_name: &str) {
@@ -27,14 +31,21 @@ pub fn rm_id(user_name: String) -> String {
 
 // デバッグモードが有効な場合のみメッセージを出力
 pub fn debug_print(message: &str) {
-    if config_read("debug_mode").contains("true") {
-        println!("Debug: {}", message);
+    if let Some(debug_mode) = config_read("debug_mode") {
+        if debug_mode.contains("true") {
+            println!("{} DEBUG : {}", time_print(), message);
+        }
     }
     return;
 }
 
+pub fn system_print(message: &str) {
+    println!("{} SYSTEM: {}", time_print(), message);
+    return;
+}
+
 // config.txtから指定された設定項目の値を取得
-pub fn config_read(config_type: &str) -> String {
+pub fn config_read(config_type: &str) -> Option<String> {
     let mut config_path: PathBuf = current_exe().unwrap();
     config_path.pop();
     config_path.push("config.txt");
@@ -42,47 +53,22 @@ pub fn config_read(config_type: &str) -> String {
         Ok(config_data) => {
             let config_lines: Vec<String> = config_data.lines().map(|s| s.to_string()).collect();
             for config_line in config_lines {
-                if (config_type == "idms_server_url") {
-                    if (config_line.contains("idms_server_url")) {
-                        return config_line[16..].to_owned();
-                    }
-                } else if (config_type == "idms_server_auth_username") {
-                    if (config_line.contains("idms_server_auth_username")) {
-                        return config_line[26..].to_owned();
-                    }
-                } else if (config_type == "idms_server_auth_password") {
-                    if (config_line.contains("idms_server_auth_password")) {
-                        return config_line[26..].to_owned();
-                    }
-                } else if (config_type == "discord_webhook_url") {
-                    if (config_line.contains("discord_webhook_url")) {
-                        return config_line[20..].to_owned();
-                    }
-                } else if (config_type == "discord_webhook_image_resolution") {
-                    if (config_line.contains("discord_webhook_image_resolution")) {
-                        return config_line[33..].to_owned();
-                    }
-                } else if (config_type == "debug_mode") {
-                    if (config_line.contains("debug_mode")) {
-                        return config_line[11..].to_owned();
-                    }
-                } else if (config_type == "max_convertpic_threads") {
-                    if (config_line.contains("max_convertpic_threads")) {
-                        return config_line[23..].to_owned();
-                    }
+                if config_line.contains(config_type) {
+                    let remove_char_len: usize = config_type.len() + 1;
+                    return Some(config_line[remove_char_len..].to_owned());
                 }
             }
-            return "none".to_owned();
+            return None;
         }
         Err(_) => {
-            println!("Error : config.txtが見つかりませんでした。(ログの解析は続行されますが、config必須な処理を実行出来ません。)");
-            return "none".to_owned();
+            system_print("config.txtが見つかりませんでした。(ログの解析は続行されますが、config必須な処理を実行出来ません。)");
+            return None;
         }
     }
 }
 
 //時間を表示する関数
 pub fn time_print() -> String {
-    let local_time= Local::now().format("%Y/%m/%d %H:%M:%S").to_string();
+    let local_time = Local::now().format("%Y/%m/%d %H:%M:%S").to_string();
     return local_time;
 }

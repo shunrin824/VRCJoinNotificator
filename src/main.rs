@@ -47,7 +47,7 @@ async fn log_analyze(
                 let log_formated: String = log_print(
                     log_line.to_string(),
                     format!(
-                        "JOIN: [{: >3}人] {}",
+                        "JOIN  : [{: >3}人] {}",
                         &users_name.len(),
                         function::rm_id((&log_line[61..]).to_string())
                     ),
@@ -62,7 +62,7 @@ async fn log_analyze(
                 let log_formated: String = log_print(
                     log_line.to_string(),
                     format!(
-                        "LEFT: [{: >3}人] {}",
+                        "LEFT  : [{: >3}人] {}",
                         &users_name.len(),
                         function::rm_id((&log_line[59..]).to_string())
                     ),
@@ -73,7 +73,7 @@ async fn log_analyze(
             if log_line.contains("Attempting to resolve URL") {
                 let log_formated: String = log_print(
                     log_line.to_string(),
-                    format!("URL : {}", &log_line[77..].to_string()),
+                    format!("URL   : {}", &log_line[77..].to_string()),
                 );
                 println!("{}", log_formated);
                 log_formated_lines.push(log_formated);
@@ -82,7 +82,7 @@ async fn log_analyze(
             if log_line.contains("Resolving URL") {
                 let log_formated: String = log_print(
                     log_line.to_string(),
-                    format!("URL : {}", &log_line[65..].to_string()),
+                    format!("URL   : {}", &log_line[65..].to_string()),
                 );
                 println!("{}", log_formated);
                 log_formated_lines.push(log_formated);
@@ -91,7 +91,7 @@ async fn log_analyze(
             if log_line.contains("[VRC Camera] Took screenshot to") {
                 let log_formated: String = log_print(
                     log_line.to_string(),
-                    format!("CAM : {}", &log_line[67..].to_string()),
+                    format!("CAM   : {}", &log_line[67..].to_string()),
                 );
                 println!("{}", log_formated);
                 log_formated_lines.push(log_formated);
@@ -106,7 +106,7 @@ async fn log_analyze(
                 world_name = log_line[72..].to_string();
                 let log_formated: String = log_print(
                     log_line.to_string(),
-                    format!("ROOM: {}", &log_line[72..].to_string()),
+                    format!("WORLD : {}", &log_line[72..].to_string()),
                 );
                 println!("{}", log_formated);
                 log_formated_lines.push(log_formated);
@@ -159,13 +159,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut upload_datas: Vec<idms::UploadData> = Vec::new();
     let mut log_lines: Vec<String> = Vec::new();
     let mut log_formated_lines: Vec<String> = Vec::new();
-    let mut upload_queue: VecDeque<Vec<idms::UploadData>> = VecDeque::new();
+    let mut upload_queue: VecDeque<idms::UploadData> = VecDeque::new();
     let mut upload_handles: Vec<tokio::task::JoinHandle<()>> = Vec::new();
 
     let mut max_pic_convert_threads: usize;
-    if let Ok(config_max_str) = function::config_read("max_convertpic_threads").parse::<usize>() {
-        if !config_max_str < 1 {
-            max_pic_convert_threads = config_max_str;
+    if let Some(cf_max_convertpic_threads) = function::config_read("max_convertpic_threads") {
+        if let Ok(config_max_str) = cf_max_convertpic_threads.parse::<usize>() {
+            if !config_max_str < 1 {
+                max_pic_convert_threads = config_max_str;
+            } else {
+                max_pic_convert_threads = 4;
+            }
         } else {
             max_pic_convert_threads = 4;
         }
@@ -197,10 +201,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         //マルチスレッド(最大スレッド数: max_pic_convert_threads)でのDiscordとSDMSへのアップロード処理
 
         if !upload_datas.is_empty() {
-            upload_queue.push_back(upload_datas.clone());
+            for upload_data in upload_datas {
+                upload_queue.push_back(upload_data.clone());
+            }
             upload_datas = Vec::new();
         }
 
+        upload_handles.retain(|h| !h.is_finished());
         if upload_handles.len() < max_pic_convert_threads {
             if let Some(data) = upload_queue.pop_front() {
                 function::debug_print("マルチプロセスでのアップロードを開始します。");
@@ -221,7 +228,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         {
             println!("System: VRChatが終了しました。");
 
-                // 全てのアップロードタスクの完了を待つ
+            // 全てのアップロードタスクの完了を待つ
             if upload_handles.len() > 0 || upload_queue.len() > 0 {
                 println!("System: 現在アップロード処理中です。");
                 while upload_handles.len() > 0 || upload_queue.len() > 0 {
@@ -231,6 +238,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         upload_handles.len(),
                         upload_queue.len()
                     );
+                    upload_handles.retain(|h| !h.is_finished());
                     if upload_handles.len() < max_pic_convert_threads {
                         if let Some(data) = upload_queue.pop_front() {
                             function::debug_print("マルチプロセスでのアップロードを開始します。");
