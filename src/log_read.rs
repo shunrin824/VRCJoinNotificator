@@ -1,3 +1,4 @@
+use dirs::home_dir;
 use std::env;
 use std::fs::read_to_string;
 use std::path::PathBuf;
@@ -6,11 +7,49 @@ use std::path::PathBuf;
 pub fn log_file_path() -> PathBuf {
     let mut latest_log_file: String = "".to_owned();
     let mut latest_log_time: i64 = 0;
-    let log_dir = PathBuf::from(env::var("USERPROFILE").expect("error"))
-        .join("AppData")
-        .join("LocalLow")
-        .join("VRChat")
-        .join("VRChat");
+    
+    let log_dir = if cfg!(target_os = "windows") {
+        PathBuf::from(env::var("USERPROFILE").expect("USERPROFILE environment variable not found"))
+            .join("AppData")
+            .join("LocalLow")
+            .join("VRChat")
+            .join("VRChat")
+    } else if cfg!(target_os = "linux") {
+        PathBuf::from(home_dir().expect("Could not find home directory"))
+            .join(".local")
+            .join("share")
+            .join("Steam")
+            .join("steamapps")
+            .join("compatdata")
+            .join("438100")
+            .join("pfx")
+            .join("drive_c")
+            .join("users")
+            .join("steamuser")
+            .join("AppData")
+            .join("LocalLow")
+            .join("VRChat")
+            .join("VRChat")
+    } else if cfg!(target_os = "macos") {
+        PathBuf::from(home_dir().expect("Could not find home directory"))
+            .join("Library")
+            .join("Application Support")
+            .join("Steam")
+            .join("steamapps")
+            .join("compatdata")
+            .join("438100")
+            .join("pfx")
+            .join("drive_c")
+            .join("users")
+            .join("steamuser")
+            .join("AppData")
+            .join("LocalLow")
+            .join("VRChat")
+            .join("VRChat")
+    } else {
+        panic!("Unsupported operating system")
+    };
+
     let files = log_dir.read_dir().expect("This Directory is nothing.");
     for file_path in files {
         let log_file_name: String = file_path
