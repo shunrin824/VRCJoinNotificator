@@ -13,7 +13,12 @@ pub fn format_path(path: &str) -> PathBuf {
     if cfg!(target_os = "windows") {
         return PathBuf::from(path);
     } else if cfg!(target_os = "linux") {
-        return PathBuf::from(home_dir().expect("Could not find home directory")).join(".local")
+        // Windowsパスを正規化してからLinux環境用のパスに変換
+        let normalized_path = normalize_windows_path(path);
+        let stripped_path = strip_drive_prefix(&normalized_path);
+        
+        return PathBuf::from(home_dir().expect("Could not find home directory"))
+            .join(".local")
             .join("share")
             .join("Steam")
             .join("steamapps")
@@ -21,9 +26,31 @@ pub fn format_path(path: &str) -> PathBuf {
             .join("438100")
             .join("pfx")
             .join("drive_c")
-            .join(PathBuf::from(&path[3..]))
-    } else{
-        return PathBuf::from(&path[3..]);
+            .join(stripped_path);
+    } else {
+        // macOS等その他のOS
+        let normalized_path = normalize_windows_path(path);
+        return strip_drive_prefix(&normalized_path);
+    }
+}
+
+/// Windowsパスの区切り文字を正規化し、PathBufとして処理可能な形に変換
+fn normalize_windows_path(path: &str) -> PathBuf {
+    // バックスラッシュをスラッシュに変換してから PathBuf を作成
+    let normalized = path.replace('\\', "/");
+    PathBuf::from(normalized)
+}
+
+/// ドライブプレフィックス（C:など）を除去
+fn strip_drive_prefix(path: &PathBuf) -> PathBuf {
+    let path_str = path.to_string_lossy();
+    
+    // "C:" のようなドライブレターを検出して除去
+    if path_str.len() >= 2 && path_str.chars().nth(1) == Some(':') {
+        // "C:/Users/..." → "/Users/..." に変換
+        PathBuf::from(&path_str[2..])
+    } else {
+        path.clone()
     }
 }
 
