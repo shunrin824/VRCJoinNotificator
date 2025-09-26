@@ -30,14 +30,16 @@ pub fn format_path(path: PathBuf) -> PathBuf {
 
 /// PathからドライブレターなどのPrefixを削除する関数
 pub fn strip_path_prefix(path: &Path) -> PathBuf {
+    // パスを構成要素のイテレータに変換
     let mut components = path.components();
 
-    // 最初のコンポーネントがPrefixかどうかをチェック
+    // 最初のコンポーネントがPrefix（"C:"や"\\server\share"など）かどうかをチェック
     if let Some(Component::Prefix(_)) = components.next() {
-        // Prefixだった場合、残りのコンポーネントからPathを再構築して返す
+        // Prefixだった場合、イテレータは1つ進んでいる。
+        // 残りのコンポーネントから新しいPathBufを再構築して返す。
         components.as_path().to_path_buf()
     } else {
-        // Prefixでなければ、元のパスをそのまま返す
+        // Prefixでなければ、元のパスをそのままPathBufにして返す
         path.to_path_buf()
     }
 }
