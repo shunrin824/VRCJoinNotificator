@@ -9,9 +9,9 @@ use std::{
 use std::path::{Component, Path};
 use dirs::home_dir;
 
-pub fn format_path(path: PathBuf) -> PathBuf {
+pub fn format_path(path: &str) -> PathBuf {
     if cfg!(target_os = "windows") {
-        return path;
+        return PathBuf::from(path);
     } else if cfg!(target_os = "linux") {
         return PathBuf::from(home_dir().expect("Could not find home directory")).join(".local")
             .join("share")
@@ -21,9 +21,9 @@ pub fn format_path(path: PathBuf) -> PathBuf {
             .join("438100")
             .join("pfx")
             .join("drive_c")
-            .join(strip_path_prefix(&path))
+            .join(PathBuf::from(&path[3..]))
     } else{
-        return path;
+        return PathBuf::from(&path[3..]);
     }
 }
 
