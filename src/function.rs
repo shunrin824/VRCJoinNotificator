@@ -7,6 +7,26 @@ use std::{
     path::PathBuf,
 };
 use std::path::{Component, Path};
+use dirs::home_dir;
+
+pub fn format_path(path: PathBuf) -> PathBuf {
+    if cfg!(target_os = "windows") {
+        return path;
+    } else if cfg!(target_os = "linux") {
+        return PathBuf::from(home_dir().expect("Could not find home directory")).join(".local")
+            .join("share")
+            .join("Steam")
+            .join("steamapps")
+            .join("compatdata")
+            .join("438100")
+            .join("pfx")
+            .join("drive_c")
+            .join(strip_path_prefix(&path))
+    } else{
+        return path;
+    }
+}
+
 
 /// PathからドライブレターなどのPrefixを削除する関数
 pub fn strip_path_prefix(path: &Path) -> PathBuf {

@@ -97,7 +97,7 @@ async fn log_analyze(
                 log_formated_lines.push(log_formated);
                 let upload_data = idms::UploadData {
                     users_name: users_name.to_vec(),
-                    file_path: PathBuf::from(&log_line[67..]),
+                    file_path: function::format_path(PathBuf::from(&log_line[67..])),
                     world_name: world_name.clone(),
                 };
                 upload_datas.push(upload_data);

@@ -81,36 +81,11 @@ pub async fn discord_webhook_file(
     users_name: &Vec<String>,
     picture_path: &PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut picture_name: String;
-    if cfg!(target_os = "windows") {
-    picture_name = picture_path
+    let picture_name: String = picture_path
         .file_name()
         .unwrap()
         .to_string_lossy()
         .into_owned();
-    } else if cfg!(target_os = "linux") {
-    picture_name = function::strip_path_prefix(&picture_path).clone()
-            .join(".local")
-            .join("share")
-            .join("Steam")
-            .join("steamapps")
-            .join("compatdata")
-            .join("438100")
-            .join("pfx")
-            .join("drive_c")
-            .join("users")
-            .join("steamuser")
-            .join("AppData")
-            .join("LocalLow")
-            .join("VRChat")
-            .join("VRChat")
-        .file_name()
-        .unwrap()
-        .to_string_lossy()
-        .into_owned();
-    }else{
-        picture_name = "error".to_string();
-    }
     let mut file_part: Option<Part> = None;
 
     if let Ok(picture_metadata) = picture_path.metadata() {
