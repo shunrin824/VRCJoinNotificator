@@ -81,6 +81,8 @@ pub async fn discord_webhook_file(
     users_name: &Vec<String>,
     picture_path: &PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    function::debug_print(&format!("discord_webhook_file開始: パス={}", picture_path.display()));
+    
     let picture_name: String = picture_path
         .file_name()
         .unwrap()
@@ -89,12 +91,18 @@ pub async fn discord_webhook_file(
     let mut file_part: Option<Part> = None;
 
     if let Ok(picture_metadata) = picture_path.metadata() {
+        function::debug_print(&format!("ファイルサイズ: {} bytes", picture_metadata.len()));
         if picture_metadata.len() < 10 * 1000 * 1000 {
+            function::debug_print("小さなファイル: 直接読み込み");
             let file = fs::read(&picture_path)?;
             file_part = Some(Part::bytes(file).file_name(picture_name.clone()));
         } else {
+            function::debug_print("大きなファイル: 変換処理開始");
             if let Ok(dir) = tempfile::tempdir() {
+                function::debug_print(&format!("一時ディレクトリ作成成功: {}", dir.path().display()));
                 let converted_image_path = dir.path().join(picture_name.clone());
+                function::debug_print(&format!("変換先パス: {}", converted_image_path.display()));
+                
                 image::less10mb_webp(
                     &picture_path.to_str().unwrap(),
                     converted_image_path.to_str().unwrap(),
@@ -102,8 +110,16 @@ pub async fn discord_webhook_file(
                         .parse::<u32>()
                         .unwrap_or(0),
                 );
-                let file = fs::read(converted_image_path)?;
-                file_part = Some(Part::bytes(file).file_name(picture_name.clone()));
+                function::debug_print("画像変換完了");
+                
+                if converted_image_path.exists() {
+                    function::debug_print("変換後ファイル存在確認OK");
+                    let file = fs::read(converted_image_path)?;
+                    file_part = Some(Part::bytes(file).file_name(picture_name.clone()));
+                } else {
+                    function::system_print("変換後の画像ファイルが見つかりません");
+                    return Ok(());
+                }
             } else {
                 function::system_print("一時ディレクトリの作成に失敗しました。権限またはディスク容量を確認してください。");
                 return Ok(());
@@ -115,6 +131,7 @@ pub async fn discord_webhook_file(
     }
 
     if let Some(upload_file_part) = file_part {
+        function::debug_print("Discordへの送信開始");
         let form = multipart::Form::new()
             .text(
                 "content",
@@ -128,6 +145,7 @@ pub async fn discord_webhook_file(
             .part("file", upload_file_part);
 
         discord_webhook_send(form).await?;
+        function::debug_print("Discordへの送信完了");
     } else {
         function::system_print("ファイルの読み込みまたは変換処理に失敗しました。");
     }
