@@ -47,8 +47,13 @@ fn strip_drive_prefix(path: &PathBuf) -> PathBuf {
     
     // "C:" のようなドライブレターを検出して除去
     if path_str.len() >= 2 && path_str.chars().nth(1) == Some(':') {
-        // "C:/Users/..." → "/Users/..." に変換
-        PathBuf::from(&path_str[2..])
+        // "C:/Users/..." → "Users/..." に変換（先頭の/を除去）
+        let stripped = &path_str[2..];
+        if stripped.starts_with('/') {
+            PathBuf::from(&stripped[1..])
+        } else {
+            PathBuf::from(stripped)
+        }
     } else {
         path.clone()
     }
