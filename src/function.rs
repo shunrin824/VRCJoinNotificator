@@ -6,6 +6,21 @@ use std::{
     io::{self, BufRead, BufReader, Write},
     path::PathBuf,
 };
+use std::path::{Component, Path};
+
+/// PathからドライブレターなどのPrefixを削除する関数
+pub fn strip_path_prefix(path: &Path) -> PathBuf {
+    let mut components = path.components();
+
+    // 最初のコンポーネントがPrefixかどうかをチェック
+    if let Some(Component::Prefix(_)) = components.next() {
+        // Prefixだった場合、残りのコンポーネントからPathを再構築して返す
+        components.as_path().to_path_buf()
+    } else {
+        // Prefixでなければ、元のパスをそのまま返す
+        path.to_path_buf()
+    }
+}
 
 // ユーザーリストにユーザーを追加
 pub fn user_push(users_name: &mut Vec<String>, user_name: &str) {
