@@ -105,12 +105,12 @@ pub async fn discord_webhook_file(
                 let file = fs::read(converted_image_path)?;
                 file_part = Some(Part::bytes(file).file_name(picture_name.clone()));
             } else {
-                println!("不明なエラーが発生しました。discord_webhook_file_!(let Ok(dir) = tempfile::tempdir())");
+                function::system_print("一時ディレクトリの作成に失敗しました。権限またはディスク容量を確認してください。");
                 return Ok(());
             };
         }
     } else {
-        println!("不明なエラーが発生しました。discord_webhook_file_!(let Ok(picture_metadata) = picture_path.metadata())");
+        function::system_print(&format!("画像ファイルのメタデータ取得に失敗しました。パス: {}", picture_path.display()));
         return Ok(());
     }
 
@@ -129,7 +129,7 @@ pub async fn discord_webhook_file(
 
         discord_webhook_send(form).await?;
     } else {
-        println!("不明なエラーが発生しました。discord_webhook_file_!(let Some(upload_file_part) = file_part");
+        function::system_print("ファイルの読み込みまたは変換処理に失敗しました。");
     }
     return Ok(());
 }
