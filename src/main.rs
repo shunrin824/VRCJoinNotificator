@@ -97,7 +97,7 @@ async fn log_analyze(
                 log_formated_lines.push(log_formated);
                 let upload_data = idms::UploadData {
                     users_name: users_name.to_vec(),
-                    file_path: PathBuf::from(&log_line[67..]),
+                    file_path: function::format_path(&log_line[67..]),
                     world_name: world_name.clone(),
                 };
                 upload_datas.push(upload_data);
@@ -143,7 +143,7 @@ async fn log_analyze(
 
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!(
-        "System: VRCJoinNotificator v0.3.3が起動しました。\nSystem: VRCJoinNotificatorを初期化中です。"
+        "System: VRCJoinNotificator v0.3.4が起動しました。\nSystem: VRCJoinNotificatorを初期化中です。"
     );
     let mut config_path: PathBuf = current_exe().unwrap();
     config_path.pop();
