@@ -22,7 +22,7 @@ struct XsoverlayData {
 
 // XSOverlayにUDPで通知を送信
 pub fn send2_xsoverlay(title: &str, content: &str) {
-    let number_of_rows: f32 = content.matches("\n").count() as f32;
+    let number_of_rows: f32 = content.matches("\n").count() as f32 * 0.5 + 2.0;
     let data = XsoverlayData {
         messageType: 1,
         index: 0,
